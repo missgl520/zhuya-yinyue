@@ -15,42 +15,19 @@ import os
 import sqlite3
 
 from config import settings
+import db
 import encryption
 
-DB_PATH = os.path.join(settings.DATA_DIR, "zhuyu_memory.db")
+DB_PATH = db.DB_PATH  # 统一到 data/zhuyu.db（保留常量以兼容老引用）
 
 
 def _conn() -> sqlite3.Connection:
-    os.makedirs(settings.DATA_DIR, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return db.conn()
 
 
 def init() -> None:
-    conn = _conn()
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS memories (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            role        TEXT NOT NULL,
-            content     TEXT NOT NULL,
-            category    TEXT NOT NULL DEFAULT 'chat_memory',
-            tags        TEXT NOT NULL DEFAULT '[]',
-            importance  REAL NOT NULL DEFAULT 0.5,
-            created_at  TEXT NOT NULL,
-            user_id     TEXT NOT NULL DEFAULT 'default'
-        )
-        """
-    )
-    # 兼容旧库：补充 user_id 列
-    cols = [r["name"] for r in conn.execute("PRAGMA table_info(memories)").fetchall()]
-    if "user_id" not in cols:
-        conn.execute(
-            "ALTER TABLE memories ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'"
-        )
-    conn.commit()
-    conn.close()
+    # 建表 + 迁移统一由 db.init() 负责，这里仅确保数据库就绪
+    db.init()
 
 
 def store(role: str, content: str, category: str = "chat_memory",

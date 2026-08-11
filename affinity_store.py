@@ -1,59 +1,59 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 好感度存储（affinity_store.py）
 #
-# 持久化到 data/affinity/{user_id}.json。字段与前端 Affinity.fromJson 对齐：
+# 持久化到统一数据库 data/zhuyu.db 的 affinity 表（按 user_id 隔离）。
+# 整行作为加密 JSON blob 存储，与记忆的字段加密策略保持一致
+# （满足 PIPL 个人信息 at-rest 加密）。
+#
+# 字段与前端 Affinity.fromJson 对齐：
 #   trust / intimacy / familiarity / total_interactions / streak_days
 #
-# 多用户隔离（v1.1）：每个 user_id 一份独立文件，避免好感度混存。
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 公开 API 与旧版（每用户 JSON 文件）完全一致：
+#   load / save / bump_after_chat / reset
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import datetime
 import json
-import os
 
-from config import settings
+import db
 import encryption
 
-AFFINITY_DIR = os.path.join(settings.DATA_DIR, "affinity")
-
-
-def _path(user_id: str) -> str:
-    # 仅保留安全字符，避免路径穿越
-    safe = "".join(c for c in (user_id or "default") if c.isalnum() or c in "-_") or "default"
-    os.makedirs(AFFINITY_DIR, exist_ok=True)
-    return os.path.join(AFFINITY_DIR, f"{safe}.json")
+_DEFAULT = {
+    "trust": 30.0,
+    "intimacy": 20.0,
+    "familiarity": 5.0,
+    "total_interactions": 0,
+    "streak_days": 0,
+    "last_active_date": "",
+}
 
 
 def _default() -> dict:
-    return {
-        "trust": 30.0,
-        "intimacy": 20.0,
-        "familiarity": 5.0,
-        "total_interactions": 0,
-        "streak_days": 0,
-        "last_active_date": "",
-    }
+    return dict(_DEFAULT)
 
 
 def load(user_id: str = "default") -> dict:
+    c = db.conn()
+    row = c.execute(
+        "SELECT data FROM affinity WHERE user_id = ?", (user_id,)
+    ).fetchone()
+    c.close()
+    if not row:
+        return _default()
     try:
-        with open(_path(user_id), encoding="utf-8") as f:
-            raw = f.read()
-        text = encryption.decrypt(raw)
-        data = json.loads(text)
-        base = _default()
-        base.update(data)
-        return base
-    except FileNotFoundError:
+        return {**_default(), **json.loads(encryption.decrypt(row["data"]))}
+    except Exception:
         return _default()
 
 
 def save(data: dict, user_id: str = "default") -> None:
-    os.makedirs(AFFINITY_DIR, exist_ok=True)
-    text = json.dumps(data, ensure_ascii=False, indent=2)
-    token = encryption.encrypt(text)
-    with open(_path(user_id), "w", encoding="utf-8") as f:
-        f.write(token)
+    c = db.conn()
+    c.execute(
+        "INSERT OR REPLACE INTO affinity(user_id, data) VALUES (?, ?)",
+        (user_id, encryption.encrypt(json.dumps(data, ensure_ascii=False))),
+    )
+    c.commit()
+    c.close()
 
 
 def bump_after_chat(user_id: str = "default") -> dict:
@@ -82,7 +82,7 @@ def bump_after_chat(user_id: str = "default") -> dict:
 
 def reset(user_id: str = "default") -> None:
     """删除该用户的好感度数据（删除权）。"""
-    try:
-        os.remove(_path(user_id))
-    except FileNotFoundError:
-        pass
+    c = db.conn()
+    c.execute("DELETE FROM affinity WHERE user_id = ?", (user_id,))
+    c.commit()
+    c.close()

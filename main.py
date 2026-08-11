@@ -32,6 +32,8 @@ import affinity_store
 import agnes_client
 import auth
 import content_moderation
+import db
+import encryption
 import emotion_engine
 import livekit_token
 import memory_store
@@ -68,25 +70,34 @@ app.add_middleware(
 # 法律文本目录（隐私政策 / 用户协议）
 LEGAL_DIR = os.path.join(BASE_DIR, "legal")
 
-# 初始化存储
-memory_store.init()
-os.makedirs(settings.DATA_DIR, exist_ok=True)
-STATE_FILE = os.path.join(settings.DATA_DIR, "state.json")
+# 初始化存储（统一 SQLite：memories / affinity / kv）
+db.init()
 
 
-# ── 运行时状态（persona / wake_word）──
+# ── 运行时状态（persona / wake_word），持久化到 SQLite kv 表（值加密）──
 def load_state() -> dict:
-    try:
-        with open(STATE_FILE, encoding="utf-8") as f:
-            return json.load(f)
-    except FileNotFoundError:
-        return {"persona": settings.PERSONA_DEFAULT,
-                "wake_word": settings.WAKE_WORD_DEFAULT}
+    c = db.conn()
+    rows = c.execute(
+        "SELECT key, value FROM kv WHERE key IN ('persona', 'wake_word')"
+    ).fetchall()
+    c.close()
+    stored = {r["key"]: encryption.decrypt(r["value"]) for r in rows}
+    return {
+        "persona": stored.get("persona", settings.PERSONA_DEFAULT),
+        "wake_word": stored.get("wake_word", settings.WAKE_WORD_DEFAULT),
+    }
 
 
 def save_state(state: dict) -> None:
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(state, f, ensure_ascii=False, indent=2)
+    c = db.conn()
+    for k in ("persona", "wake_word"):
+        if k in state:
+            c.execute(
+                "INSERT OR REPLACE INTO kv(key, value) VALUES (?, ?)",
+                (k, encryption.encrypt(str(state[k]))),
+            )
+    c.commit()
+    c.close()
 
 
 def sse(event: str, data: dict) -> str:
