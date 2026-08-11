@@ -170,7 +170,7 @@ def migrate_legacy() -> None:
                     for k in ("persona", "wake_word"):
                         if k in s:
                             c.execute(
-                                text("INSERT IGNORE INTO kv(key, value) VALUES (:k, :v)"),
+                                text("INSERT IGNORE INTO kv(`key`, value) VALUES (:k, :v)"),
                                 {"k": k, "v": encryption.encrypt(str(s[k]))},
                             )
                     c.commit()

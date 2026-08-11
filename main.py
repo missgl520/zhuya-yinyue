@@ -79,7 +79,7 @@ db.init()
 def load_state() -> dict:
     with db.conn() as c:
         rows = c.execute(
-            text("SELECT key, value FROM kv WHERE key IN ('persona', 'wake_word')")
+            text("SELECT `key`, value FROM kv WHERE `key` IN ('persona', 'wake_word')")
         ).fetchall()
     stored = {r.key: encryption.decrypt(r.value) for r in rows}
     return {
@@ -90,12 +90,23 @@ def load_state() -> dict:
 
 def save_state(state: dict) -> None:
     with db.conn() as c:
+        is_mysql = c.dialect.name == "mysql"
         for k in ("persona", "wake_word"):
-            if k in state:
+            if k not in state:
+                continue
+            if is_mysql:
                 c.execute(
                     text(
-                        "INSERT INTO kv(key, value) VALUES (:k, :v) "
+                        "INSERT INTO kv(`key`, value) VALUES (:k, :v) "
                         "ON DUPLICATE KEY UPDATE value = :v"
+                    ),
+                    {"k": k, "v": encryption.encrypt(str(state[k]))},
+                )
+            else:
+                # SQLite 不支持 ON DUPLICATE KEY UPDATE，用 INSERT OR REPLACE
+                c.execute(
+                    text(
+                        "INSERT OR REPLACE INTO kv(`key`, value) VALUES (:k, :v)"
                     ),
                     {"k": k, "v": encryption.encrypt(str(state[k]))},
                 )
