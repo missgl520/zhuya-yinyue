@@ -37,6 +37,17 @@ class Settings:
     LIVEKIT_API_KEY: str = os.getenv("LIVEKIT_API_KEY", "")
     LIVEKIT_API_SECRET: str = os.getenv("LIVEKIT_API_SECRET", "")
 
+    # ── 接口签名鉴权（API Key + 请求签名）──
+    # 留空（""）则进入「开发模式」：不强制签名，便于本地联调。
+    # 生产环境【必须】设置强随机值，并在前端同步配置相同 API Key。
+    API_KEY: str = os.getenv("ZHUYU_API_KEY", "zhuyu-dev-key-change-me")
+    # 签名时间容差（秒）——用于防重放，建议生产保持 300 以内
+    SIGNATURE_TOLERANCE_SECONDS: int = int(os.getenv("SIGNATURE_TOLERANCE_SECONDS", "300"))
+    # CORS 允许的源（逗号分隔）。留空则使用内置本地方略（不使用通配符 "*"）。
+    ALLOWED_ORIGINS: list = [
+        o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
+    ]
+
     @property
     def agnes_base_url(self) -> str:
         # 国内版 / 国际版

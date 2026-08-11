@@ -20,28 +20,53 @@
 #   GET  /livekit/connect        获取语音通话连接信息
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import datetime
 import json
 import os
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
 import affinity_store
 import agnes_client
+import auth
+import content_moderation
 import emotion_engine
 import livekit_token
 import memory_store
-from config import settings
+from config import BASE_DIR, settings
 
-app = FastAPI(title="竹笌后端 (ZhuyApp Backend)", version="1.0.0")
+app = FastAPI(
+    title="竹笌后端 (ZhuyApp Backend)",
+    version="1.1.0",
+    # 全路由统一签名鉴权（公开路径在 auth.verify_request 内白名单放行）
+    dependencies=[Depends(auth.verify_request)],
+)
+
+
+def _cors_origins() -> list:
+    # 生产【必须】通过环境变量 ALLOWED_ORIGINS 指定具体域名（逗号分隔）；
+    # 未配置时不使用通配符 "*"，仅放行常见本地来源（移动端不受 CORS 限制）。
+    if settings.ALLOWED_ORIGINS:
+        return settings.ALLOWED_ORIGINS
+    return [
+        "http://localhost", "http://127.0.0.1",
+        "http://localhost:3000", "http://localhost:8080", "http://localhost:5000",
+        "https://chilly-sloths-jump.loca.lt",
+    ]
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
+    allow_origins=_cors_origins(),
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    allow_credentials=False,
 )
+
+# 法律文本目录（隐私政策 / 用户协议）
+LEGAL_DIR = os.path.join(BASE_DIR, "legal")
 
 # 初始化存储
 memory_store.init()
@@ -136,10 +161,27 @@ async def chat_v2(request: Request):
     temperature = float(body.get("temperature", 0.8))
     max_tokens = int(body.get("max_tokens", 500))
 
+    # 多用户隔离：从签名中间件注入的 user_id 取用户标识
+    user_id = getattr(request.state, "user_id", "default")
+
     state = load_state()
     persona = state.get("persona", settings.PERSONA_DEFAULT)
 
     async def event_gen():
+        # ── 违法内容前置过滤（用户输入）──
+        blocked, reason = content_moderation.moderate(message)
+        if blocked:
+            yield sse("blocked", {"reason": reason})
+            yield sse("done", {})
+            return
+
+        # 生成式 AI 内容标识（暂行办法第九条）
+        yield sse("meta", {
+            "ai_generated": True,
+            "service": "竹笌",
+            "notice": "本内容为人工智能生成",
+        })
+
         full_text = ""
         try:
             if settings.has_agnes:
@@ -169,14 +211,16 @@ async def chat_v2(request: Request):
         emo = emotion_engine.detect_emotion(full_text)
         yield sse("emotion", emo)
 
-        # 持久化记忆：用户消息 + 竹笌回复
+        # 持久化记忆：用户消息 + 竹笌回复（按 user_id 隔离）
         if message:
-            memory_store.store("user", message, category="user_memory")
+            memory_store.store("user", message, category="user_memory", user_id=user_id)
         if full_text:
-            memory_store.store("assistant", "竹笌：" + full_text, category="chat_memory")
+            memory_store.store(
+                "assistant", "竹笌：" + full_text, category="chat_memory", user_id=user_id
+            )
 
-        # 好感度更新
-        aff = affinity_store.bump_after_chat()
+        # 好感度更新（按 user_id 隔离）
+        aff = affinity_store.bump_after_chat(user_id)
         yield sse("affinity", aff)
 
         yield sse("done", {})
@@ -193,47 +237,69 @@ async def chat_v2(request: Request):
 # ════════════════════════════════════════════════════════
 
 @app.get("/memory/today")
-def memory_today():
-    return {"memories": memory_store.get_today()}
+def memory_today(request: Request):
+    user_id = getattr(request.state, "user_id", "default")
+    return {"memories": memory_store.get_today(user_id)}
 
 
 @app.get("/memory/search")
-def memory_search(q: str = "", mode: str = "keyword", limit: int = 20):
-    mems = memory_store.search(q, limit) if q else []
+def memory_search(request: Request, q: str = "", mode: str = "keyword", limit: int = 20):
+    user_id = getattr(request.state, "user_id", "default")
+    mems = memory_store.search(q, limit, user_id) if q else []
     results = [{"content": m["content"], "category": m["category"]} for m in mems]
     # 同时满足两个前端调用方：BackendService 读 memories，MemoryService 读 results+count
     return {"count": len(mems), "results": results, "memories": mems}
 
 
 @app.get("/memory/summaries")
-def memory_summaries():
-    return {"summaries": memory_store.summaries()}
+def memory_summaries(request: Request):
+    user_id = getattr(request.state, "user_id", "default")
+    return {"summaries": memory_store.summaries(user_id)}
 
 
 @app.post("/memory")
 async def memory_store_one(request: Request):
+    user_id = getattr(request.state, "user_id", "default")
     body = await request.json()
     role = body.get("role", "user")
     content = body.get("content", "")
     category = body.get("category", "chat_memory")
     if not content:
         return JSONResponse({"ok": False, "error": "content 不能为空"}, status_code=400)
-    mid = memory_store.store(role, content, category)
+    mid = memory_store.store(role, content, category, user_id=user_id)
     return {"ok": True, "id": mid}
 
 
+@app.put("/memory/{mem_id}")
+async def memory_update(mem_id: int, request: Request):
+    """用户更正其个人记忆内容（PIPL 更正权）。仅允许修改本人记录。"""
+    user_id = getattr(request.state, "user_id", "default")
+    body = await request.json()
+    content = (body.get("content") or "").strip()
+    if not content:
+        return JSONResponse({"ok": False, "error": "content 不能为空"}, status_code=400)
+    ok = memory_store.update_content(mem_id, content, user_id)
+    if not ok:
+        return JSONResponse(
+            {"ok": False, "error": "记录不存在或不属于该用户"}, status_code=404
+        )
+    return {"ok": True}
+
+
 @app.post("/memory/clear")
-def memory_clear():
-    memory_store.clear_all()
+def memory_clear(request: Request):
+    user_id = getattr(request.state, "user_id", "default")
+    memory_store.clear_all(user_id)
     return {"ok": True}
 
 
 @app.delete("/memory")
-def memory_delete_category(category: str = ""):
+def memory_delete_category(request: Request, category: str = ""):
+    user_id = getattr(request.state, "user_id", "default")
     if category:
-        memory_store.clear_category(category)
+        memory_store.clear_category(category, user_id)
     else:
-        memory_store.clear_all()
+        memory_store.clear_all(user_id)
     return {"ok": True}
 
 
@@ -242,8 +308,9 @@ def memory_delete_category(category: str = ""):
 # ════════════════════════════════════════════════════════
 
 @app.get("/affinity")
-def affinity():
-    return affinity_store.load()
+def affinity(request: Request):
+    user_id = getattr(request.state, "user_id", "default")
+    return affinity_store.load(user_id)
 
 
 # ════════════════════════════════════════════════════════
@@ -257,3 +324,55 @@ def livekit_connect(room: str = "zhuyapp-voice", user_id: str = ""):
         return {"available": False,
                 "message": "LiveKit 未配置（请在 .env 设置 LIVEKIT_URL/API_KEY/API_SECRET）"}
     return {"available": True, "livekit_url": settings.LIVEKIT_URL, "token": token}
+
+
+# ════════════════════════════════════════════════════════
+# 法律文本 & 用户数据权利（PIPL）
+# ════════════════════════════════════════════════════════
+
+def _read_legal(filename: str) -> str:
+    path = os.path.join(LEGAL_DIR, filename)
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return f"# {filename} 未找到\n请先在 legal/ 目录放置对应文档。"
+
+
+@app.get("/legal/privacy", include_in_schema=True)
+def legal_privacy():
+    """隐私政策（Markdown）。"""
+    return PlainTextResponse(
+        _read_legal("privacy_policy.md"),
+        media_type="text/markdown; charset=utf-8",
+    )
+
+
+@app.get("/legal/terms", include_in_schema=True)
+def legal_terms():
+    """用户协议（Markdown）。"""
+    return PlainTextResponse(
+        _read_legal("terms_of_service.md"),
+        media_type="text/markdown; charset=utf-8",
+    )
+
+
+@app.get("/user/export")
+def user_export(request: Request):
+    """导出该用户全部个人数据（访问 / 可携带权）。"""
+    user_id = getattr(request.state, "user_id", "default")
+    return {
+        "user_id": user_id,
+        "memories": memory_store.export_all(user_id),
+        "affinity": affinity_store.load(user_id),
+        "exported_at": datetime.datetime.now().isoformat(timespec="seconds"),
+    }
+
+
+@app.delete("/user/data")
+def user_data_delete(request: Request):
+    """删除该用户全部个人数据（删除权）。"""
+    user_id = getattr(request.state, "user_id", "default")
+    memory_store.clear_all(user_id)
+    affinity_store.reset(user_id)
+    return {"ok": True, "user_id": user_id}

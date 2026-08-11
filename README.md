@@ -25,6 +25,11 @@
 | DELETE | `/memory?category=` | 清空某分类 |
 | GET | `/affinity` | 好感度 `{trust,intimacy,familiarity,total_interactions,streak_days}` |
 | GET | `/livekit/connect` | 语音通话连接信息 `{livekit_url, token}` |
+| GET | `/legal/privacy` | 隐私政策（Markdown，公开） |
+| GET | `/legal/terms` | 用户协议（Markdown，公开） |
+| GET | `/user/export` | 导出当前用户全部个人数据（访问/可携带权） |
+| DELETE | `/user/data` | 删除当前用户全部个人数据（删除权） |
+| PUT | `/memory/{id}` | 更正某条本人记忆内容（更正权） |
 
 ### `/chat/v2` SSE 事件格式
 
@@ -85,18 +90,50 @@ curl -N -X POST http://localhost:8000/chat/v2 \
 
 在 `F:\zhuyapp\lib\core\config.dart` 中也可修改 `_defaultBaseUrl` 的硬编码默认值。
 
+## 安全与合规（v1.1）
+
+为通过生成式 AI 服务安全评估与《个人信息保护法》要求，后端已加入：
+
+- **接口签名鉴权**：除公开路径（`/health`、`/docs`、`/legal/*` 等）外，所有请求须携带
+  `X-Api-Key` / `X-Timestamp` / `X-Nonce` / `X-Signature` / `X-User-Id` 头。
+  签名为 `HMAC-SHA256(API_KEY, "METHOD\nPATH\nTIMESTAMP\nNONCE\nSHA256(BODY)")`，
+  含时间戳容差与 nonce 重放防护。详见 `auth.py`。
+- **多用户数据隔离**：记忆按 `user_id` 分库、好感度按 `user_id` 分文件，互不混存。
+- **AI 内容标识**：`/chat/v2` 在流式起始下发 `meta` 事件标注 `ai_generated:true`。
+- **违规内容前置过滤**：用户输入命中高危词时在 `chat/v2` 返回 `blocked` 事件（MVP，生产建议接入专业内容安全服务）。
+- **用户权利接口**：`/user/export`、`/user/data`、`PUT /memory/{id}`。
+- **静态加密（at-rest）**：个人数据落盘加密。`memory_store` 的 `content` 字段、
+  `affinity_store` 的 JSON 文件均以 `cryptography.Fernet` 对称加密存储；
+  密钥优先取环境变量 `ZHUYU_ENC_KEY`，否则首次运行在 `data/.enc_key` 自动生成
+  （已 gitignore）。因密文无法 `LIKE` 检索，`/memory/search` 改为内存解密后过滤，
+  对单用户个人数据量完全可接受。详见 `encryption.py`。
+- **密钥管理**：建议生产显式设置 `ZHUYU_ENC_KEY`（base64 32 字节 Fernet key）；
+  若使用本地自动生成密钥，迁移服务器时务必一并带走 `data/.enc_key`，否则旧数据无法解密。
+
+### 生产部署必做
+
+1. 设置强随机 `ZHUYU_API_KEY`，前端构建用
+   `--dart-define=ZHUYU_API_KEY=<相同值>` 同步。
+2. 设置 `ALLOWED_ORIGINS` 为具体域名（不要用 `*`）。
+3. 在 `legal/` 目录填写正式的《隐私政策》《用户协议》，并补全运营主体与联系邮箱占位。
+4. 完成算法备案与安全评估（向网信办）、国际版数据出境标准合同等法定程序。
+
 ## 目录结构
 
 ```
 zhuyapp-backend/
 ├── main.py            # FastAPI 应用与全部路由
 ├── config.py          # 配置（读 .env）
+├── auth.py            # 接口签名鉴权（API Key + 请求签名）
+├── encryption.py      # 静态加密（at-rest，Fernet）
+├── content_moderation.py # 违规内容前置过滤（MVP）
 ├── agnes_client.py    # Agnes 流式对话 + mock 兜底
 ├── emotion_engine.py  # 规则情绪识别
-├── affinity_store.py  # 好感度持久化（JSON）
-├── memory_store.py    # 记忆持久化（SQLite）
+├── affinity_store.py  # 好感度持久化（按 user_id 分文件）
+├── memory_store.py    # 记忆持久化（SQLite，按 user_id 隔离）
 ├── livekit_token.py   # LiveKit 令牌生成
 ├── requirements.txt
 ├── .env.example
-└── data/              # 运行时生成（affinity.json / zhuyu_memory.db / state.json）
+├── legal/             # 隐私政策 / 用户协议（Markdown）
+└── data/              # 运行时生成（affinity/{user_id}.json / zhuyu_memory.db / state.json）
 ```
