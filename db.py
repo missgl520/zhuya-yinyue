@@ -61,7 +61,7 @@ memories_t = Table(
     Column("role", String(32), nullable=False),
     Column("content", Text, nullable=False),
     Column("category", String(64), nullable=False, server_default="chat_memory"),
-    Column("tags", Text, nullable=False, server_default="[]"),
+    Column("tags", Text, nullable=True),  # TiDB/严格MySQL: TEXT列不可设default，由应用层兜底"[]"
     Column("importance", Float, nullable=False, server_default="0.5"),
     Column("created_at", String(32), nullable=False),
     Column("user_id", String(128), nullable=False, server_default="default"),
