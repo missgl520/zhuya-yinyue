@@ -28,6 +28,14 @@ class Settings:
     # ── 持久化目录 ──
     DATA_DIR: str = os.getenv("DATA_DIR", os.path.join(BASE_DIR, "data"))
 
+    # ── 数据库连接（SQLAlchemy URL）──
+    # 默认使用本地 SQLite（开发）；设为 MySQL URL 即切换到远程云库。
+    # MySQL 示例：mysql+pymysql://user:pass@host:port/dbname
+    DATABASE_URL: str = os.getenv(
+        "DATABASE_URL",
+        f"sqlite:///{os.path.join(BASE_DIR, 'data', 'zhuyu.db')}",
+    )
+
     # ── 默认角色 / 唤醒词 ──
     PERSONA_DEFAULT: str = os.getenv("PERSONA_DEFAULT", "gentle")
     WAKE_WORD_DEFAULT: str = os.getenv("WAKE_WORD_DEFAULT", "竹笌竹笌")

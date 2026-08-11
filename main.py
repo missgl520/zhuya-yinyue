@@ -38,6 +38,7 @@ import emotion_engine
 import livekit_token
 import memory_store
 from config import BASE_DIR, settings
+from sqlalchemy import text
 
 app = FastAPI(
     title="竹笌后端 (ZhuyApp Backend)",
@@ -74,14 +75,13 @@ LEGAL_DIR = os.path.join(BASE_DIR, "legal")
 db.init()
 
 
-# ── 运行时状态（persona / wake_word），持久化到 SQLite kv 表（值加密）──
+# ── 运行时状态（persona / wake_word），持久化到数据库 kv 表（值加密）──
 def load_state() -> dict:
-    c = db.conn()
-    rows = c.execute(
-        "SELECT key, value FROM kv WHERE key IN ('persona', 'wake_word')"
-    ).fetchall()
-    c.close()
-    stored = {r["key"]: encryption.decrypt(r["value"]) for r in rows}
+    with db.conn() as c:
+        rows = c.execute(
+            text("SELECT key, value FROM kv WHERE key IN ('persona', 'wake_word')")
+        ).fetchall()
+    stored = {r.key: encryption.decrypt(r.value) for r in rows}
     return {
         "persona": stored.get("persona", settings.PERSONA_DEFAULT),
         "wake_word": stored.get("wake_word", settings.WAKE_WORD_DEFAULT),
@@ -89,15 +89,17 @@ def load_state() -> dict:
 
 
 def save_state(state: dict) -> None:
-    c = db.conn()
-    for k in ("persona", "wake_word"):
-        if k in state:
-            c.execute(
-                "INSERT OR REPLACE INTO kv(key, value) VALUES (?, ?)",
-                (k, encryption.encrypt(str(state[k]))),
-            )
-    c.commit()
-    c.close()
+    with db.conn() as c:
+        for k in ("persona", "wake_word"):
+            if k in state:
+                c.execute(
+                    text(
+                        "INSERT INTO kv(key, value) VALUES (:k, :v) "
+                        "ON DUPLICATE KEY UPDATE value = :v"
+                    ),
+                    {"k": k, "v": encryption.encrypt(str(state[k]))},
+                )
+        c.commit()
 
 
 def sse(event: str, data: dict) -> str:

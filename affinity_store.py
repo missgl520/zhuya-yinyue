@@ -1,7 +1,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 好感度存储（affinity_store.py）
 #
-# 持久化到统一数据库 data/zhuyu.db 的 affinity 表（按 user_id 隔离）。
+# 持久化到统一数据库的 affinity 表（按 user_id 隔离）。
 # 整行作为加密 JSON blob 存储，与记忆的字段加密策略保持一致
 # （满足 PIPL 个人信息 at-rest 加密）。
 #
@@ -14,6 +14,8 @@
 
 import datetime
 import json
+
+from sqlalchemy import text
 
 import db
 import encryption
@@ -33,27 +35,32 @@ def _default() -> dict:
 
 
 def load(user_id: str = "default") -> dict:
-    c = db.conn()
-    row = c.execute(
-        "SELECT data FROM affinity WHERE user_id = ?", (user_id,)
-    ).fetchone()
-    c.close()
+    with db.conn() as c:
+        row = c.execute(
+            text("SELECT data FROM affinity WHERE user_id = :uid"),
+            {"uid": user_id},
+        ).fetchone()
     if not row:
         return _default()
     try:
-        return {**_default(), **json.loads(encryption.decrypt(row["data"]))}
+        return {**_default(), **json.loads(encryption.decrypt(row.data))}
     except Exception:
         return _default()
 
 
 def save(data: dict, user_id: str = "default") -> None:
-    c = db.conn()
-    c.execute(
-        "INSERT OR REPLACE INTO affinity(user_id, data) VALUES (?, ?)",
-        (user_id, encryption.encrypt(json.dumps(data, ensure_ascii=False))),
-    )
-    c.commit()
-    c.close()
+    with db.conn() as c:
+        c.execute(
+            text(
+                "INSERT INTO affinity(user_id, data) VALUES (:uid, :d) "
+                "ON DUPLICATE KEY UPDATE data = :d"
+            ),
+            {
+                "uid": user_id,
+                "d": encryption.encrypt(json.dumps(data, ensure_ascii=False)),
+            },
+        )
+        c.commit()
 
 
 def bump_after_chat(user_id: str = "default") -> dict:
@@ -82,7 +89,9 @@ def bump_after_chat(user_id: str = "default") -> dict:
 
 def reset(user_id: str = "default") -> None:
     """删除该用户的好感度数据（删除权）。"""
-    c = db.conn()
-    c.execute("DELETE FROM affinity WHERE user_id = ?", (user_id,))
-    c.commit()
-    c.close()
+    with db.conn() as c:
+        c.execute(
+            text("DELETE FROM affinity WHERE user_id = :uid"),
+            {"uid": user_id},
+        )
+        c.commit()
