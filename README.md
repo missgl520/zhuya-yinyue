@@ -115,7 +115,9 @@ curl -N -X POST http://localhost:8000/chat/v2 \
 1. 设置强随机 `ZHUYU_API_KEY`，前端构建用
    `--dart-define=ZHUYU_API_KEY=<相同值>` 同步。
 2. 设置 `ALLOWED_ORIGINS` 为具体域名（不要用 `*`）。
-3. 在 `legal/` 目录填写正式的《隐私政策》《用户协议》，并补全运营主体与联系邮箱占位。
+3. 在 `legal/` 目录填写正式的《隐私政策》《用户协议》（已是模板，含 `【请填写…】` 占位）；
+   上线前在 `.env` 设置 `OPERATOR_NAME`、`PRIVACY_CONTACT_EMAIL`、`SERVICE_CONTACT_EMAIL`，
+   后端 `/legal/*` 接口返回时自动替换占位（见 `config.py` 与 `main.py:_read_legal`）。
 4. 完成算法备案与安全评估（向网信办）、国际版数据出境标准合同等法定程序。
 
 ## 目录结构

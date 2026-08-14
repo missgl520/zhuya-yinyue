@@ -358,9 +358,16 @@ def _read_legal(filename: str) -> str:
     path = os.path.join(LEGAL_DIR, filename)
     try:
         with open(path, encoding="utf-8") as f:
-            return f.read()
+            text = f.read()
     except FileNotFoundError:
         return f"# {filename} 未找到\n请先在 legal/ 目录放置对应文档。"
+
+    # 将文档模板中的占位标记替换为运营方配置（来源：.env → config.py）
+    return (
+        text.replace("【请填写运营主体名称】", settings.OPERATOR_NAME)
+        .replace("【请填写隐私联系邮箱】", settings.PRIVACY_CONTACT_EMAIL)
+        .replace("【请填写服务联系邮箱】", settings.SERVICE_CONTACT_EMAIL)
+    )
 
 
 @app.get("/legal/privacy", include_in_schema=True)

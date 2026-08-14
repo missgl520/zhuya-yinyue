@@ -56,6 +56,17 @@ class Settings:
         o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()
     ]
 
+    # ── 运营主体与联系信息（用于隐私政策 / 用户协议占位替换）──
+    # 上线前【必须】替换为真实信息：在 .env 设置以下变量即可，无需改动 legal/ 文档模板。
+    # 默认值保留占位提示，未配置时前端展示仍为「请填写…」，便于上线前自检。
+    OPERATOR_NAME: str = os.getenv("OPERATOR_NAME", "【请填写运营主体名称】")
+    PRIVACY_CONTACT_EMAIL: str = os.getenv(
+        "PRIVACY_CONTACT_EMAIL", "【请填写隐私联系邮箱】"
+    )
+    SERVICE_CONTACT_EMAIL: str = os.getenv(
+        "SERVICE_CONTACT_EMAIL", "【请填写服务联系邮箱】"
+    )
+
     @property
     def agnes_base_url(self) -> str:
         # 国内版 / 国际版
