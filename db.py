@@ -15,6 +15,7 @@
 
 import json
 import os
+from typing import Optional
 
 from sqlalchemy import (
     Column,
@@ -34,7 +35,7 @@ from config import settings
 import encryption
 
 _metadata = MetaData()
-_engine: Engine | None = None
+_engine: Optional[Engine] = None
 
 
 def _is_mysql_url(url: str) -> bool:
