@@ -105,8 +105,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
   // ━━━ TTS 朗读 ━━━
 
   /// 触发竹笌回复的语音朗读（语音陪聊核心能力）。
-  /// - 按设置页的 TTS 模式选择 Cartesia / 系统 TTS；
-  /// - Cartesia 未配置或失败时自动降级到系统 TTS，保证一定出声；
+  /// - 按设置页的 TTS 模式选择 MiniMax / 系统 TTS；
+  /// - MiniMax 未配置或失败时自动降级到系统 TTS，保证一定出声；
   /// - 朗读期间同步 Live2D 的「说话」动画。
   Future<void> _speakReply(String text) async {
     final trimmed = text.trim();
@@ -120,9 +120,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
     final mode = ref.read(old_providers.ttsModeProvider);
     try {
-      if (mode == 'cartesia') {
+      if (mode == 'minimax') {
         final ok = await ref
-            .read(old_providers.cartesiaTtsServiceProvider)
+            .read(old_providers.miniMaxTtsServiceProvider)
             .speak(trimmed);
         if (!ok) {
           await ref.read(old_providers.ttsServiceProvider).speak(trimmed);

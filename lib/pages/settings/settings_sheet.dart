@@ -472,11 +472,11 @@ class _SoundContent extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: _ModeChip(
-                          label: '✨ 情感 TTS',
-                          selected: ttsMode == 'cartesia',
+                          label: '✨ MiniMax 语音',
+                          selected: ttsMode == 'minimax',
                           onTap: () {
-                            ref.read(ttsModeProvider.notifier).state = 'cartesia';
-                            Hive.box('settings').put('ttsMode', 'cartesia');
+                            ref.read(ttsModeProvider.notifier).state = 'minimax';
+                            Hive.box('settings').put('ttsMode', 'minimax');
                           },
                         ),
                       ),

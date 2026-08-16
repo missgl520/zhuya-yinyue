@@ -107,6 +107,13 @@ GRADLE_PROPS=()
 [ "${MINIFY:-}" = "1" ] && GRADLE_PROPS+=(-PzhuyappMinify=true)
 [ "${STRICT_SIGNING:-}" = "1" ] && GRADLE_PROPS+=(-PzhuyappStrictSigning=true)
 
+# ---------- dart-define（密钥/后端地址注入，不写进源码/git）----------
+# 这些变量由本地/CI 环境提供，缺省则不打入（App 走默认值）。
+DART_DEFINES=()
+[ -n "${ZHUYU_API_BASE_URL:-}" ] && DART_DEFINES+=(--dart-define=ZHUYU_API_BASE_URL="$ZHUYU_API_BASE_URL")
+[ -n "${ZHUYU_API_KEY:-}" ]      && DART_DEFINES+=(--dart-define=ZHUYU_API_KEY="$ZHUYU_API_KEY")
+[ -n "${MINIMAX_API_KEY:-}" ]    && DART_DEFINES+=(--dart-define=MINIMAX_API_KEY="$MINIMAX_API_KEY")
+
 OUTPUT_DIR="${OUTPUT_DIR:-$PROJECT_ROOT/build/release}"
 mkdir -p "$OUTPUT_DIR"
 
@@ -114,8 +121,8 @@ mkdir -p "$OUTPUT_DIR"
 echo "==> flutter pub get"
 flutter pub get
 
-echo "==> flutter build apk --release ${EXTRA_ARGS[*]:-} ${GRADLE_PROPS[*]:-}"
-flutter build apk --release "${EXTRA_ARGS[@]}" "${GRADLE_PROPS[@]}"
+echo "==> flutter build apk --release ${EXTRA_ARGS[*]:-} ${GRADLE_PROPS[*]:-} ${DART_DEFINES[*]:-}"
+flutter build apk --release "${EXTRA_ARGS[@]}" "${GRADLE_PROPS[@]}" "${DART_DEFINES[@]}"
 
 # ---------- 收集产物到输出目录 ----------
 SRC_DIR="$PROJECT_ROOT/build/app/outputs/flutter-apk"

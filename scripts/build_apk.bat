@@ -37,11 +37,17 @@ if "%OBFUSCATE%"=="1" set "EXTRA=%EXTRA% --obfuscate --split-debug-info=build/de
 set "GRADLE_PROPS="
 if "%MINIFY%"=="1" set "GRADLE_PROPS=-PzhuyappMinify=true"
 
+REM ---- dart-define（密钥/后端地址注入，不写进源码/git）----
+set "DART_DEFINES="
+if not "%ZHUYU_API_BASE_URL%"=="" set "DART_DEFINES=%DART_DEFINES% --dart-define=ZHUYU_API_BASE_URL=%ZHUYU_API_BASE_URL%"
+if not "%ZHUYU_API_KEY%"=="" set "DART_DEFINES=%DART_DEFINES% --dart-define=ZHUYU_API_KEY=%ZHUYU_API_KEY%"
+if not "%MINIMAX_API_KEY%"=="" set "DART_DEFINES=%DART_DEFINES% --dart-define=MINIMAX_API_KEY=%MINIMAX_API_KEY%"
+
 REM ---- 执行构建 ----
 echo flutter pub get
 call flutter pub get
-echo flutter build apk --release %EXTRA% %GRADLE_PROPS%
-call flutter build apk --release %EXTRA% %GRADLE_PROPS%
+echo flutter build apk --release %EXTRA% %GRADLE_PROPS% %DART_DEFINES%
+call flutter build apk --release %EXTRA% %GRADLE_PROPS% %DART_DEFINES%
 
 REM ---- 收集产物到输出目录 ----
 set "SRC=build\app\outputs\flutter-apk"

@@ -35,6 +35,7 @@ import '../core/services/backend_service.dart';
 import '../core/services/agnes_service.dart';
 import '../core/services/tts_service.dart';
 import '../core/services/cartesia_tts_service.dart';
+import '../core/services/mini_max_tts_service.dart';
 import '../core/services/lip_sync_service.dart';
 import '../core/services/asr_service.dart';
 import '../core/services/memory_service.dart';
@@ -342,6 +343,11 @@ final cartesiaTtsServiceProvider = Provider<CartesiaTTSService>((ref) {
   return CartesiaTTSService();
 });
 
+/// MiniMax 情感 TTS 服务（替代 Cartesia，密钥经 dart-define 注入）
+final miniMaxTtsServiceProvider = Provider<MiniMaxTTSService>((ref) {
+  return MiniMaxTTSService();
+});
+
 /// Lip Sync 口型值流
 ///
 /// 原理：
@@ -366,10 +372,10 @@ final ttsEnabledProvider = StateProvider<bool>((ref) {
   return box.get('ttsEnabled', defaultValue: true) as bool;
 });
 
-/// TTS 模式：'cartesia'（情感TTS）| 'system'（系统TTS）
+/// TTS 模式：'minimax'（情感TTS）| 'system'（系统TTS）
 final ttsModeProvider = StateProvider<String>((ref) {
   final box = Hive.box('settings');
-  return box.get('ttsMode', defaultValue: 'cartesia') as String;
+  return box.get('ttsMode', defaultValue: 'minimax') as String;
 });
 
 /// ASR 监听状态：true = 正在录音识别
