@@ -111,17 +111,14 @@ class _ZhuaLive2DWidgetState extends State<ZhuaLive2DWidget> {
               child: Live2DView(controller: widget.controller),
             ),
 
-            // ② 加载 / 错误叠加层：模型未就绪时显示，就绪后自动隐藏并不拦截触摸。
+            // ② 错误叠加层：仅在有加载错误时显示；正常加载/未就绪时保持透明，
+            //    让「竹笌在这里」提示和后面的模型/背景可见。
             ValueListenableBuilder<Live2DViewState>(
               valueListenable: widget.controller,
               builder: (context, state, _) {
-                final ready = state.isAttached &&
-                    !state.isLoadingModel &&
-                    state.loadedModel != null &&
-                    state.lastError == null;
-                if (ready) return const SizedBox.shrink();
+                if (state.lastError == null) return const SizedBox.shrink();
                 return IgnorePointer(
-                  ignoring: false, // 未就绪时仍需拦截，避免误触穿透
+                  ignoring: false, // 错误状态拦截触摸，避免误触
                   child: _StatusOverlay(state: state),
                 );
               },
@@ -133,7 +130,8 @@ class _ZhuaLive2DWidgetState extends State<ZhuaLive2DWidget> {
   }
 }
 
-/// 加载中 / 失败时的兜底 UI（叠加在 Live2DView 之上）
+/// 模型加载失败时的兜底 UI（叠加在 Live2DView 之上）。
+/// 正常加载中不再显示全屏遮罩，由 chat_page 的「竹笌在这里」轻提示替代。
 class _StatusOverlay extends StatelessWidget {
   final Live2DViewState state;
 
@@ -141,7 +139,6 @@ class _StatusOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasError = state.lastError != null;
     return Container(
       width: double.infinity,
       height: double.infinity,
@@ -157,94 +154,37 @@ class _StatusOverlay extends StatelessWidget {
         ],
       ),
       child: Center(
-        child: hasError
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline,
-                      color: Color(0xFFC0392B), size: 32),
-                  const SizedBox(height: 8),
-                  Text(
-                    '竹笌模型加载失败',
-                    style: TextStyle(
-                      color: const Color(0xFF2E4A35),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      state.lastError?.message ?? '未知错误',
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFF6B9E78),
-                        fontSize: 11,
-                      ),
-                      maxLines: 3,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              )
-            : const _LoadingBounce(),
-      ),
-    );
-  }
-}
-
-/// 加载中动画（三个点跳动）
-class _LoadingBounce extends StatefulWidget {
-  const _LoadingBounce();
-
-  @override
-  State<_LoadingBounce> createState() => _LoadingBounceState();
-}
-
-class _LoadingBounceState extends State<_LoadingBounce>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        return Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: List.generate(3, (i) {
-            final delay = i * 0.2;
-            final phase = ((_c.value + delay) % 1.0);
-            final bounce = phase < 0.5 ? phase * 2 : 2 - phase * 2;
-            return Container(
-              width: 10,
-              height: 10,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                color: const Color(0xFF6B9E78)
-                    .withValues(alpha: 0.4 + bounce * 0.6),
-                shape: BoxShape.circle,
+          children: [
+            const Icon(Icons.error_outline,
+                color: Color(0xFFC0392B), size: 32),
+            const SizedBox(height: 8),
+            Text(
+              '竹笌模型加载失败',
+              style: TextStyle(
+                color: const Color(0xFF2E4A35),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
               ),
-            );
-          }),
-        );
-      },
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                state.lastError?.message ?? '未知错误',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Color(0xFF6B9E78),
+                  fontSize: 11,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

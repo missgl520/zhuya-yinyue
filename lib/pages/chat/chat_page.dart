@@ -8,6 +8,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter/material.dart';
+import 'package:flutter_live2d/flutter_live2d.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../settings/settings_sheet.dart';
 import '../settings/menu_panel.dart';
@@ -233,10 +234,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final chatState = ref.watch(chatNotifierProvider);
     final status = ref.watch(conversationStatusProvider);
     final isDark = ref.watch(old_providers.themeProvider);
+    final l2dCtrl = ref.watch(old_providers.live2dControllerProvider);
+    final Live2DViewController live2dViewController = l2dCtrl.viewController;
 
     final messages = chatState.messages;
 
     return Scaffold(
+      // 聊天页背景透明，让 Live2D 平台视图作为全屏底层透出来，
+      // 顶栏/输入区等 UI 只是半透明叠加层。
+      backgroundColor: Colors.transparent,
       body: Stack(
         children: [
           // 1. Live2D 全屏底层（包括顶部状态栏区域），让角色成为背景视觉主角。
@@ -244,18 +250,18 @@ class _ChatPageState extends ConsumerState<ChatPage>
           Positioned.fill(
             child: Consumer(
               builder: (context, ref, _) {
-                final l2dCtrl =
+                final live2dCtrl =
                     ref.watch(old_providers.live2dControllerProvider);
                 final lipSync =
                     ref.watch(new_providers.lipSyncStreamProvider);
                 lipSync.whenData((mouth) {
-                  l2dCtrl.viewController.setParameter(
+                  live2dCtrl.viewController.setParameter(
                     'ParamMouthOpenY',
                     mouth.clamp(0.0, 0.75),
                   );
                 });
                 return ZhuaLive2DWidget(
-                  controller: l2dCtrl.viewController,
+                  controller: live2dCtrl.viewController,
                   onTap: () {},
                 );
               },
@@ -291,22 +297,29 @@ class _ChatPageState extends ConsumerState<ChatPage>
                           ),
                         ),
                       ),
-
-                      // 空状态提示：放在输入框上方（主屏底部），而不是屏幕中央。
-                      if (messages.isEmpty &&
-                          !(status == ConversationStatus.writing &&
-                              (chatState.currentText?.isNotEmpty ?? false)))
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: _buildEmptyHint(isDark, status),
-                          ),
-                        ),
                     ],
                   ),
                 ),
-                _buildInputArea(status, chatState.errorMessage),
+                // 输入区监听模型就绪状态，「竹笌在这里」只在模型未加载/未就绪时
+                // 紧贴输入框上方显示；模型加载成功后消失，不遮挡人物。
+                ListenableBuilder(
+                  listenable: live2dViewController,
+                  builder: (context, _) {
+                    final state = live2dViewController.value;
+                    final modelReady = state.isAttached &&
+                        !state.isLoadingModel &&
+                        state.loadedModel != null &&
+                        state.lastError == null;
+                    return _buildInputArea(
+                      status,
+                      chatState.errorMessage,
+                      isDark,
+                      modelReady,
+                      messages,
+                      chatState,
+                    );
+                  },
+                ),
               ],
             ),
           ),
@@ -318,44 +331,24 @@ class _ChatPageState extends ConsumerState<ChatPage>
   // ━━━ 顶栏 ━━━
 
   Widget _buildTopBar(bool isDark) {
-    // 顶栏作为透明 overlay：不设置背景色，让下方 Live2D 模型透出来。
+    // 顶栏作为透明 overlay：不设置任何背景/圆底，只保留带阴影的线型图标，
+    // 让 Live2D 人物/模型从图标后面完全透出来。
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          // 菜单入口：保留，但不再放 logo
+          // 菜单入口
           GestureDetector(
             onTap: () => MenuPanel.show(context),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: (isDark ? Colors.black : Colors.white)
-                    .withValues(alpha: 0.45),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.menu, size: 20, color: Colors.grey.shade600),
-            ),
+            child: const _TopIcon(icon: Icons.menu),
           ),
           const Spacer(),
           _buildStatusBadge(),
           const SizedBox(width: 12),
-          // 设置按钮也加半透明底，避免在复杂模型背景上看不清
-          Container(
-            decoration: BoxDecoration(
-              color: (isDark ? Colors.black : Colors.white)
-                  .withValues(alpha: 0.45),
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              onPressed: () => SettingsSheet.show(context),
-              icon: Icon(
-                Icons.settings_outlined,
-                size: 22,
-                color: Theme.of(context).textTheme.bodySmall?.color,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-            ),
+          // 设置按钮
+          GestureDetector(
+            onTap: () => SettingsSheet.show(context),
+            child: const _TopIcon(icon: Icons.settings_outlined),
           ),
         ],
       ),
@@ -426,8 +419,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   // ━━━ 空状态提示 ━━━
 
-  /// 空状态时显示在输入框上方的轻提示（而不是屏幕中央），
-  /// 避免遮挡居中的 Live2D 角色。
+  /// 模型未就绪时显示在输入框上方的轻提示；模型加载成功后立即消失，
+  /// 不遮挡正常显示的人物。
   Widget _buildEmptyHint(bool isDark, ConversationStatus status) {
     final label = status == ConversationStatus.idle ? '竹笌在这里' : '竹笌在等你';
     return Container(
@@ -477,7 +470,14 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   // ━━━ 输入区 ━━━
 
-  Widget _buildInputArea(ConversationStatus status, String? errorMessage) {
+  Widget _buildInputArea(
+    ConversationStatus status,
+    String? errorMessage,
+    bool isDark,
+    bool modelReady,
+    List<entities.Message> messages,
+    ChatState chatState,
+  ) {
     final isWorking =
         status == ConversationStatus.thinking ||
         status == ConversationStatus.writing;
@@ -499,6 +499,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // 模型未就绪时的轻提示：只在加载/未加载时显示，模型出来即消失。
+              if (!modelReady &&
+                  messages.isEmpty &&
+                  !(status == ConversationStatus.writing &&
+                      (chatState.currentText?.isNotEmpty ?? false)))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _buildEmptyHint(isDark, status),
+                ),
               // 思考中提示
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -602,6 +611,38 @@ class _ChatPageState extends ConsumerState<ChatPage>
           ),
         );
       },
+    );
+  }
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 顶栏图标
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/// 顶栏图标：去掉圆底/背景，用白色图标 + 深色投影保证在任意模型背景上都可见。
+class _TopIcon extends StatelessWidget {
+  final IconData icon;
+
+  const _TopIcon({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      icon,
+      size: 24,
+      color: Colors.white,
+      shadows: [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.45),
+          blurRadius: 6,
+          offset: const Offset(0, 1),
+        ),
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.2),
+          blurRadius: 14,
+          offset: const Offset(0, 2),
+        ),
+      ],
     );
   }
 }
