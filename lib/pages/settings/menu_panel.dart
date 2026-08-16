@@ -142,7 +142,6 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
 
             // ── 后端地址 ──
             _MenuTile(
-              icon: Icons.cloud_outlined,
               title: '后端地址',
               subtitle: '管理后端连接',
               onTap: () => _showBackendUrlEditor(context),
@@ -552,18 +551,22 @@ class _RelationshipBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // 竹笌头像（情绪 emoji）
+          // 竹笌头像（立体吉祥物图标）
           Container(
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: AppTheme.bamboo.withValues(alpha: 0.2),
+              color: AppTheme.bamboo.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(13),
             ),
-            child: Center(
-              child: Text(
-                _emotionEmoji(currentEmotion),
-                style: const TextStyle(fontSize: 26),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(13),
+              child: Padding(
+                padding: const EdgeInsets.all(4),
+                child: Image.asset(
+                  'assets/logo_mascot.png',
+                  fit: BoxFit.contain,
+                ),
               ),
             ),
           ),
@@ -607,17 +610,6 @@ class _RelationshipBanner extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _emotionEmoji(String emotion) {
-    return switch (emotion) {
-      'happy' => '😊',
-      'sad' => '😢',
-      'angry' => '😠',
-      'surprised' => '😲',
-      'anxious' => '😰',
-      _ => '🌱',
-    };
   }
 
   String _levelDescription(String level) {
@@ -750,18 +742,16 @@ class _AffinityBar extends StatelessWidget {
 
 // ── 通用菜单项 ──
 class _MenuTile extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final String title;
   final String subtitle;
-  final Widget? trailing;
   final String? badge;
   final void Function()? onTap;
 
   const _MenuTile({
-    required this.icon,
+    this.icon,
     required this.title,
     required this.subtitle,
-    this.trailing,
     this.badge,
     this.onTap,
   });
@@ -785,8 +775,10 @@ class _MenuTile extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 22, color: AppTheme.bamboo),
-            const SizedBox(width: 14),
+            if (icon != null) ...[
+              Icon(icon, size: 22, color: AppTheme.bamboo),
+              const SizedBox(width: 14),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -825,9 +817,7 @@ class _MenuTile extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null)
-              trailing!
-            else if (onTap != null)
+            if (onTap != null)
               Icon(Icons.chevron_right, color: Colors.grey.shade400, size: 20),
           ],
         ),

@@ -242,6 +242,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return Scaffold(
       // 聊天页背景透明，让 Live2D 平台视图作为全屏底层透出来，
       // 顶栏/输入区等 UI 只是半透明叠加层。
+      // 禁止 Scaffold 随键盘自动 resize，避免键盘弹出时压缩 Live2D 视口导致人物偏移。
+      resizeToAvoidBottomInset: false,
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
@@ -268,9 +270,13 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ),
           ),
 
-          // 2. 消息虚线框：全屏铺底，顶到屏幕物理最顶端（含状态栏下），
-          //    半透明让 Live2D 人物透出，本身作为主对话区的边框。
-          Positioned.fill(
+          // 2. 消息虚线框：只占用屏幕上半部分（约 55%），顶部与屏幕齐平。
+          //    这样 Live2D 人物固定在下半屏居中显示，消息再多也不会把人物挤走。
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: MediaQuery.of(context).size.height * 0.55,
             child: GestureDetector(
               onTap: () => _focusNode.unfocus(),
               child: DashedContainer(
@@ -333,16 +339,16 @@ class _ChatPageState extends ConsumerState<ChatPage>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          // 左上角：竹笌 logo（点击仍打开菜单面板），无圆底保持顶栏透明
+          // 左上角：竹笌立体吉祥物 logo（点击仍打开菜单面板），无圆底保持顶栏透明
           GestureDetector(
             onTap: () => MenuPanel.show(context),
             behavior: HitTestBehavior.opaque,
             child: Padding(
               padding: const EdgeInsets.all(4),
               child: Image.asset(
-                'assets/logo.png',
-                width: 32,
-                height: 32,
+                'assets/logo_mascot.png',
+                width: 36,
+                height: 36,
                 fit: BoxFit.contain,
               ),
             ),
@@ -494,7 +500,13 @@ class _ChatPageState extends ConsumerState<ChatPage>
         status == ConversationStatus.thinking ||
         status == ConversationStatus.writing;
 
-    return Container(
+    // 手动跟随键盘高度上移输入区；Scaffold 已禁止自动 resize，
+    // 避免键盘弹出时压缩 Live2D 视口导致人物偏移。
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: Theme.of(context).scaffoldBackgroundColor,
         border: Border(
@@ -504,6 +516,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
           ),
         ),
       ),
+      padding: EdgeInsets.only(bottom: keyboardHeight),
       child: SafeArea(
         top: false,
         child: Padding(
@@ -690,6 +703,15 @@ class _LetterEntry extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (!isUser) ...[
+                Image.asset(
+                  'assets/logo_mascot.png',
+                  width: 18,
+                  height: 18,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 6),
+              ],
               Text(
                 isUser ? '我' : '竹笌',
                 style: TextStyle(

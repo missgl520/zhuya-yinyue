@@ -133,6 +133,7 @@ flutter:
     - assets/live2d/ren/motions/
     # 全局 Logo 竹子图案（v1.9）
     - assets/logo.png
+    - assets/logo_mascot.png
     - assets/logo/
     # 启动页人物（旧保留）
     - assets/splash_char.png

@@ -103,7 +103,6 @@ class SettingsSheet extends ConsumerWidget {
             _MenuItem(
               title: '后端地址',
               subtitle: '管理后端连接',
-              icon: Icons.cloud_outlined,
               expanded: expanded == 'backend',
               onTap: () => _toggle(ref, 'backend'),
               children: const _BackendUrlContent(),
@@ -210,7 +209,7 @@ class _MenuDivider extends StatelessWidget {
 // ── 可展开菜单项 ──
 class _MenuItem extends ConsumerWidget {
   final String title;
-  final IconData icon;
+  final IconData? icon;
   final String? subtitle;
   final bool expanded;
   final VoidCallback onTap;
@@ -218,7 +217,7 @@ class _MenuItem extends ConsumerWidget {
 
   const _MenuItem({
     required this.title,
-    required this.icon,
+    this.icon,
     this.subtitle,
     required this.expanded,
     required this.onTap,
@@ -246,8 +245,10 @@ class _MenuItem extends ConsumerWidget {
             ),
             child: Row(
               children: [
-                Icon(icon, size: 20, color: AppTheme.bamboo),
-                const SizedBox(width: 14),
+                if (icon != null) ...[
+                  Icon(icon, size: 20, color: AppTheme.bamboo),
+                  const SizedBox(width: 14),
+                ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
