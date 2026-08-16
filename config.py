@@ -20,6 +20,8 @@ class Settings:
     AGNES_API_KEY: str = os.getenv("AGNES_API_KEY", "")
     AGNES_USE_CN: bool = os.getenv("AGNES_USE_CN", "true").lower() in ("1", "true", "yes")
     AGNES_MODEL: str = os.getenv("AGNES_MODEL", "agnes-2.0-flash")
+    # 自定义 base_url（可选）：覆盖下方默认域名，支持用户自有 agnes 网关
+    AGNES_BASE_URL: str = os.getenv("AGNES_BASE_URL", "")
 
     # ── 服务监听 ──
     HOST: str = os.getenv("HOST", "0.0.0.0")
@@ -69,7 +71,13 @@ class Settings:
 
     @property
     def agnes_base_url(self) -> str:
-        # 国内版 / 国际版
+        # 显式指定 base_url 时优先（支持用户自有域名，如 api.agnes-ai.cn）
+        if self.AGNES_BASE_URL:
+            base = self.AGNES_BASE_URL.rstrip("/")
+            if base.endswith("/chat/completions"):
+                return base
+            return base + "/chat/completions"
+        # 默认：国内版 / 国际版
         return (
             "https://apihub.agnes-ai.cn/v1/chat/completions"
             if self.AGNES_USE_CN

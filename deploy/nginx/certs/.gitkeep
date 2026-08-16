@@ -1,0 +1,5 @@
+# 此目录用于存放 TLS 证书，由 certbot 生成后复制/软链到此处：
+#   fullchain.pem
+#   privkey.pem
+# compose 已将此目录只读挂载进 nginx 容器（/etc/nginx/certs）。
+# 真实证书不要提交进 git（本文件仅为 git 占位）。

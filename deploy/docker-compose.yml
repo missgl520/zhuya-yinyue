@@ -1,0 +1,53 @@
+# 竹笌后端部署编排
+# 在 deploy/ 目录执行：docker compose up -d --build
+#
+# 架构：nginx(80/443, 对外) -> backend:8000(仅内网网络)
+#   - 公网只暴露 80/443；后端 8000 不暴露在宿主机
+#   - 用户数据持久化在 ../data（volume 挂载），镜像重建不丢数据
+#   - 环境变量来自仓库根目录的 .env（production 模板见 .env.production.example）
+
+services:
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: zhuyu-backend:latest
+    container_name: zhuyu-backend
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      # 容器内数据目录固定；宿主机的 ../data 挂载到这里
+      - DATA_DIR=/app/data
+    volumes:
+      - ../data:/app/data
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    networks:
+      - zhuyu-net
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: zhuyu-nginx
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - ./nginx/www:/var/www/zhuyu:ro
+    networks:
+      - zhuyu-net
+
+networks:
+  zhuyu-net:
+    driver: bridge

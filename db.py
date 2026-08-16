@@ -118,6 +118,9 @@ def conn() -> Connection:
 
 def init() -> None:
     """建表（幂等）+ 迁移遗留 JSON。后端启动时调用一次。"""
+    # 确保数据目录存在：SQLite 不会自动创建父目录，
+    # 云托管镜像里 data/ 被 .dockerignore 排除，启动前必须自建，否则 create_all 直接崩。
+    os.makedirs(settings.DATA_DIR, exist_ok=True)
     engine = get_engine()
     _metadata.create_all(engine, checkfirst=True)
 

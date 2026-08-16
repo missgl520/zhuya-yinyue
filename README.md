@@ -182,3 +182,20 @@ zhuyapp-backend/
 ├── legal/             # 隐私政策 / 用户协议（Markdown）
 └── data/              # 运行时生成（zhuyu.db / .enc_key / state.json / server.log）
 ```
+
+## 部署到腾讯云
+
+完整的生产部署方案（Docker + Nginx 反代 + HTTPS）已就绪，详见
+[`deploy/README.deploy.md`](deploy/README.deploy.md)，包含三种形态：
+
+- **方式一 · 腾讯云 CVM + Docker（推荐）**：`deploy/` 下已备好
+  `Dockerfile`、`docker-compose.yml`（backend + nginx 两容器）、nginx 反代配置、
+  `.env.production.example` 与一键 `deploy.sh`。公网只暴露 80/443，后端不直连公网，
+  数据持久化在 `data/` volume。
+- **方式二 · 腾讯云 CloudBase 云托管（容器）**：用同一 `deploy/Dockerfile` 构建镜像推到云托管，
+  免管服务器（注意无状态容器需配合 TencentDB for MySQL 持久化数据）。
+- **方式三 · 纯 systemd + venv**：轻量备选，直接用 `gunicorn + uvicorn worker` 跑，复用同一 nginx 配置。
+
+**部署前后端联动关键点**：后端 `.env` 的 `ZHUYU_API_KEY` 必须与前端生产构建的
+`--dart-define=ZHUYU_API_KEY` **完全一致**，否则 App 所有请求 401。前端地址用
+`--dart-define=ZHUYU_API_BASE_URL=https://你的域名` 注入。

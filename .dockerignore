@@ -1,0 +1,32 @@
+# 竹笌后端 Docker 构建忽略清单
+# build context = 仓库根目录；以下路径不会被 COPY 进镜像
+
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+
+.git/
+.gitignore
+
+# 运行时数据（用户记忆/好感度）不进镜像，用 volume 挂载
+data/
+
+# 密钥与本地环境不进镜像
+.env
+*.env
+*.env.local
+
+# 构建/运行日志
+*.log
+
+# 编辑器/IDE
+.idea/
+.vscode/
+
+# 真实 TLS 证书不进镜像（仅保留占位 .gitkeep）
+deploy/nginx/certs/*
+!deploy/nginx/certs/.gitkeep
+deploy/nginx/www/*
+!deploy/nginx/www/.gitkeep

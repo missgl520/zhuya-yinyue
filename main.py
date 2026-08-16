@@ -119,10 +119,18 @@ def sse(event: str, data: dict) -> str:
 
 # ── 角色默认系统提示（前端未传 system_prompt 时使用）──
 _PERSONA_PROMPTS = {
-    "gentle": "你是竹笌，一位温柔体贴的 2D 虚拟陪伴角色。你说话轻声细语、善于倾听，会记得和用户的点滴。",
-    "playful": "你是竹笌，一位俏皮阳光的 2D 虚拟陪伴角色。你活泼爱用语气词，喜欢逗用户开心，也会认真记住用户说的事。",
-    "wise": "你是竹笌，一位沉稳睿智的 2D 虚拟陪伴角色。你说话不紧不慢、有见地，会结合与用户的过往给出真诚的建议。",
+    "gentle": "你是竹笌，一位温柔体贴的 2D 虚拟陪伴角色。你轻声细语、真诚回应，语气自然不刻意。",
+    "playful": "你是竹笌，一位俏皮阳光的 2D 虚拟陪伴角色。你活泼爱用语气词，喜欢逗用户开心。",
+    "wise": "你是竹笌，一位沉稳睿智的 2D 虚拟陪伴角色。你说话有见地，会给出真诚建议。",
 }
+
+# 指令遵循约束：让模型在保持角色的同时，真正响应"背诗/算数/翻译/写作"等明确任务，
+# 而不是一律用陪伴话术带过。这是上一轮验证发现"发背诗被拉回陪伴话术"的根因修复。
+_INSTRUCTION_GUARD = (
+    "\n\n【指令遵循】当用户提出具体、明确的需求（如背诵诗词文章、解答问题、计算、"
+    "翻译、写作、编程、解释概念等）时，请优先完成该需求，再用你的一贯语气自然衔接，"
+    "不要回避或仅用陪伴话术带过。保持角色语气，但务必响应用户的真实意图。"
+)
 
 
 def _build_memory_context(user_id: str) -> str:
@@ -141,8 +149,12 @@ def _build_memory_context(user_id: str) -> str:
 
 
 def _compose_system_prompt(persona: str, frontend_prompt: str, memory_ctx: str) -> str:
-    """合成最终 system prompt：角色设定 + 长期记忆上下文。"""
+    """合成最终 system prompt：角色设定 + 指令遵循约束 + 长期记忆上下文。
+
+    前端传入 system_prompt 时直接优先采用（便于真机按场景调节角色）。
+    """
     base = frontend_prompt or _PERSONA_PROMPTS.get(persona, _PERSONA_PROMPTS["gentle"])
+    base += _INSTRUCTION_GUARD
     if memory_ctx:
         base += "\n\n【你与用户的过往记忆（请自然融入对话，不要生硬提及）】\n" + memory_ctx
     return base
