@@ -224,10 +224,21 @@ Java_com_linh18nd_flutter_1live2d_Live2DBridge_nativeOnSurfaceChanged(JNIEnv*, j
 
     if (view->model && view->model->IsLoaded())
     {
+        auto* modelMatrix = view->model->GetModelMatrix();
         if (view->width > view->height)
-            view->model->GetModelMatrix()->SetHeight(2.0f);
+        {
+            // 横屏：让角色高度顶满，水平居中
+            modelMatrix->SetHeight(2.0f);
+            modelMatrix->SetCenterPosition(0.0f, 0.0f);
+        }
         else
-            view->model->GetModelMatrix()->SetWidth(2.0f);
+        {
+            // 竖屏：让角色完整显示在主屏中间偏下位置。
+            // 原 SetWidth(2.0f) 会让角色按宽度撑满，导致头部/脚部被顶栏/底栏截断。
+            // 这里把宽度缩到 1.5 并整体下移，留出上下安全边距。
+            modelMatrix->SetWidth(1.5f);
+            modelMatrix->SetCenterPosition(0.0f, -0.35f);
+        }
     }
 }
 

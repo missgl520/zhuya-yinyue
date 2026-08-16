@@ -257,25 +257,35 @@ class _ChatPageState extends ConsumerState<ChatPage>
             Expanded(
               child: Stack(
                 children: [
-                  // 1. Live2D 铺满背景（底层，视觉主角）
-                  Positioned.fill(
-                    child: Consumer(
-                      builder: (context, ref, _) {
-                        final l2dCtrl =
-                            ref.watch(old_providers.live2dControllerProvider);
-                        final lipSync =
-                            ref.watch(new_providers.lipSyncStreamProvider);
-                        lipSync.whenData((mouth) {
-                          l2dCtrl.viewController.setParameter(
-                            'ParamMouthOpenY',
-                            mouth.clamp(0.0, 0.75),
-                          );
-                        });
-                        return ZhuaLive2DWidget(
-                          controller: l2dCtrl.viewController,
-                          onTap: () {},
-                        );
-                      },
+                  // 1. Live2D 位于主屏底部居中（底层，视觉主角）。
+                  //    高度限制为主屏的 90%，底部与输入栏留 8px 呼吸边距，
+                  //    避免角色被顶栏/底栏截断，同时不覆盖底部输入区。
+                  Align(
+                    alignment: Alignment.bottomCenter,
+                    child: FractionallySizedBox(
+                      heightFactor: 0.9,
+                      alignment: Alignment.bottomCenter,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Consumer(
+                          builder: (context, ref, _) {
+                            final l2dCtrl =
+                                ref.watch(old_providers.live2dControllerProvider);
+                            final lipSync =
+                                ref.watch(new_providers.lipSyncStreamProvider);
+                            lipSync.whenData((mouth) {
+                              l2dCtrl.viewController.setParameter(
+                                'ParamMouthOpenY',
+                                mouth.clamp(0.0, 0.75),
+                              );
+                            });
+                            return ZhuaLive2DWidget(
+                              controller: l2dCtrl.viewController,
+                              onTap: () {},
+                            );
+                          },
+                        ),
+                      ),
                     ),
                   ),
 
