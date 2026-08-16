@@ -252,7 +252,10 @@ Java_com_linh18nd_flutter_1live2d_Live2DBridge_nativeOnDrawFrame(JNIEnv*, jclass
     Live2DPal::UpdateTime();
 
     glViewport(0, 0, view->width, view->height);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    // 竹笌主页背景：极浅的竹叶白绿，让虚拟角色站在浅色背景上。
+    // 平台视图(Surface)在 Android 上盖在 Flutter overlay 之下，
+    // 因此背景色只能由这里决定，Flutter 层的 Container 反而会把人物挡住。
+    glClearColor(0.93f, 0.97f, 0.94f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     if (view->model && view->model->IsLoaded())

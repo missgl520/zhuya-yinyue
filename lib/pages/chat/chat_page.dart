@@ -268,38 +268,34 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ),
           ),
 
-          // 2. 主内容层：SafeArea 保证状态栏/导航栏安全，
-          //    顶栏透明，消息/输入区正常叠加。
+          // 2. 消息虚线框：全屏铺底，顶到屏幕物理最顶端（含状态栏下），
+          //    半透明让 Live2D 人物透出，本身作为主对话区的边框。
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: () => _focusNode.unfocus(),
+              child: DashedContainer(
+                borderColor: AppTheme.bambooDeep.withValues(alpha: 0.55),
+                borderRadius: 0,
+                backgroundColor: isDark
+                    ? Colors.black.withValues(alpha: 0.34)
+                    : AppTheme.bamboo.withValues(alpha: 0.06),
+                strokeWidth: 1.5,
+                padding: EdgeInsets.zero,
+                child: (messages.isEmpty &&
+                        !(status == ConversationStatus.writing &&
+                            (chatState.currentText?.isNotEmpty ?? false)))
+                    ? const SizedBox.shrink()
+                    : _buildLetterList(chatState, status),
+              ),
+            ),
+          ),
+          // 3. 顶栏 + 输入区：SafeArea 保证不被状态栏/导航栏遮挡，
+          //    绘制在虚线框之上。
           SafeArea(
             child: Column(
               children: [
                 _buildTopBar(isDark),
-                Expanded(
-                  child: Stack(
-                    children: [
-                      // 消息半透明浮层（中层，嫩绿虚线边框，让人物透出）
-                      Positioned.fill(
-                        child: GestureDetector(
-                          onTap: () => _focusNode.unfocus(),
-                          child: DashedContainer(
-                            borderColor: AppTheme.bamboo.withValues(alpha: 0.5),
-                            borderRadius: 0,
-                            backgroundColor: isDark
-                                ? Colors.black.withValues(alpha: 0.34)
-                                : AppTheme.bamboo.withValues(alpha: 0.06),
-                            padding: EdgeInsets.zero,
-                            child: (messages.isEmpty &&
-                                    !(status == ConversationStatus.writing &&
-                                        (chatState.currentText?.isNotEmpty ??
-                                            false)))
-                                ? const SizedBox.shrink()
-                                : _buildLetterList(chatState, status),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const Spacer(),
                 // 输入区监听模型就绪状态，「竹笌在这里」只在模型未加载/未就绪时
                 // 紧贴输入框上方显示；模型加载成功后消失，不遮挡人物。
                 ListenableBuilder(
@@ -337,10 +333,19 @@ class _ChatPageState extends ConsumerState<ChatPage>
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
-          // 菜单入口
+          // 左上角：竹笌 logo（点击仍打开菜单面板），无圆底保持顶栏透明
           GestureDetector(
             onTap: () => MenuPanel.show(context),
-            child: const _TopIcon(icon: Icons.menu),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.contain,
+              ),
+            ),
           ),
           const Spacer(),
           _buildStatusBadge(),
@@ -455,10 +460,17 @@ class _ChatPageState extends ConsumerState<ChatPage>
         (chatState.currentText?.isNotEmpty ?? false);
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+      // 虚线框已顶到屏幕最顶端，这里给列表留出状态栏 + 顶栏的高度，
+      // 避免消息被顶栏按钮/状态栏遮挡。
+      padding: EdgeInsets.fromLTRB(
+        24,
+        MediaQuery.of(context).padding.top + 60,
+        24,
+        16,
+      ),
       itemCount: messages.length + 1 + (typing ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == 0) return const SizedBox(height: 40);
+        if (index == 0) return const SizedBox(height: 8);
         final msgIndex = index - 1;
         if (typing && msgIndex == messages.length) {
           return _LetterEntry.typing(chatState.currentText!);
