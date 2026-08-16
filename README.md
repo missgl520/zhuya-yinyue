@@ -74,10 +74,53 @@ curl -N -X POST http://localhost:8000/chat/v2 \
 
 ## 两种模式
 
-- **真实对话（推荐）**：在 `.env` 填入 `AGNES_API_KEY`，`/chat/v2` 会直连
-  Agnes 大模型流式生成回复。Agnes 异常时自动降级为演示回复，App 不中断。
+- **真实对话（推荐）**：在 `.env` 填入 `AGNES_API_KEY`（国内版见
+  `apihub.agnes-ai.cn`），`/chat/v2` 会直连 Agnes 大模型流式生成回复。
+  Agnes 异常时自动降级为演示回复，App 不中断。可选 `AGNES_USE_CN`（默认 true）、
+  `AGNES_MODEL`（默认 agnes-2.0-flash）。
 - **Mock 演示模式**：不填 key 也能跑通完整对话流程（演示角色化回复），
   便于本地联调与演示，无需任何外部账号。
+
+### 接入真实 Agnes（让对话变真）
+
+```bash
+# .env
+AGNES_API_KEY=你的_agnes_key
+AGNES_USE_CN=true            # 国内版（默认）；国际版填 false
+AGNES_MODEL=agnes-2.0-flash
+```
+
+重启后端后 `/chat/v2` 即走真实大模型（`/` 返回的 `agnes_enabled` 变为 true）。
+真实模式下，`/chat/v2` 会把该用户**近期长期记忆**注入 system prompt，
+使竹笌跨会话记得你（见下节）。
+
+### 接入真实 LiveKit（语音通话）
+
+```bash
+# .env
+LIVEKIT_URL=wss://你的.livekit.server
+LIVEKIT_API_KEY=你的_api_key
+LIVEKIT_API_SECRET=你的_api_secret
+```
+
+填齐三件套后，`GET /livekit/connect` 返回 `available:true` 与有效 JWT
+令牌（HS256，含 `room`/`roomJoin`/`canPublish`/`canSubscribe` 授权），
+前端据此连入语音房。缺任意一项则返回 `available:false`（语音通话降级关闭），
+不影响其他功能。
+
+## 已增强能力（v1.2）
+
+- **对话长期记忆注入**：`/chat/v2` 在生成回复前自动拉取该用户近期记忆
+  （最近 12 条 + 今日摘要），注入 system prompt。竹笌因而**跨会话记得用户**
+  （例如记得你说过的事、偏好）。mock 模式下注入不影响兜底文本；真实 Agnes
+  模式下直接生效。后端日志会打印 `[memory] user=xxx injected N memories`。
+- **情绪识别优化**：`/chat/v2` 的 `emotion` 事件改为识别**用户输入**（而非
+  竹笌回复），并给 `happy/sad/angry` 等强情绪词加权、并列时优先，避免被
+  回复里常见的问句词（curious）反超。独立 `POST /emotion` 接口同样生效。
+- **记忆检索增强**：`/memory/search` 支持 `category` 可选过滤，结果按
+  相关性（命中词数 + 重要性 + 时间新近）降序排序。前端不传 `category` 时兼容。
+- **记忆摘要增强**：`/memory/summaries` 解密记忆内容并聚合为每日规则摘要
+  （修复了此前直接返回密文的 bug），返回 `summary` 字段供前端展示。
 
 ## 前端对接
 
@@ -98,7 +141,7 @@ curl -N -X POST http://localhost:8000/chat/v2 \
   `X-Api-Key` / `X-Timestamp` / `X-Nonce` / `X-Signature` / `X-User-Id` 头。
   签名为 `HMAC-SHA256(API_KEY, "METHOD\nPATH\nTIMESTAMP\nNONCE\nSHA256(BODY)")`，
   含时间戳容差与 nonce 重放防护。详见 `auth.py`。
-- **多用户数据隔离**：记忆按 `user_id` 分库、好感度按 `user_id` 分文件，互不混存。
+- **多用户数据隔离**：记忆与好感度均按 `user_id` 存于统一加密库（SQLite/MySQL），读写均按 `user_id` 过滤，互不混存。
 - **AI 内容标识**：`/chat/v2` 在流式起始下发 `meta` 事件标注 `ai_generated:true`。
 - **违规内容前置过滤**：用户输入命中高危词时在 `chat/v2` 返回 `blocked` 事件（MVP，生产建议接入专业内容安全服务）。
 - **用户权利接口**：`/user/export`、`/user/data`、`PUT /memory/{id}`。
@@ -131,11 +174,11 @@ zhuyapp-backend/
 ├── content_moderation.py # 违规内容前置过滤（MVP）
 ├── agnes_client.py    # Agnes 流式对话 + mock 兜底
 ├── emotion_engine.py  # 规则情绪识别
-├── affinity_store.py  # 好感度持久化（按 user_id 分文件）
-├── memory_store.py    # 记忆持久化（SQLite，按 user_id 隔离）
+├── affinity_store.py  # 好感度持久化（按 user_id 加密表）
+├── memory_store.py    # 记忆持久化（SQLite/MySQL，按 user_id 隔离）
 ├── livekit_token.py   # LiveKit 令牌生成
 ├── requirements.txt
 ├── .env.example
 ├── legal/             # 隐私政策 / 用户协议（Markdown）
-└── data/              # 运行时生成（affinity/{user_id}.json / zhuyu_memory.db / state.json）
+└── data/              # 运行时生成（zhuyu.db / .enc_key / state.json / server.log）
 ```

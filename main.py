@@ -117,6 +117,37 @@ def sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
+# ── 角色默认系统提示（前端未传 system_prompt 时使用）──
+_PERSONA_PROMPTS = {
+    "gentle": "你是竹笌，一位温柔体贴的 2D 虚拟陪伴角色。你说话轻声细语、善于倾听，会记得和用户的点滴。",
+    "playful": "你是竹笌，一位俏皮阳光的 2D 虚拟陪伴角色。你活泼爱用语气词，喜欢逗用户开心，也会认真记住用户说的事。",
+    "wise": "你是竹笌，一位沉稳睿智的 2D 虚拟陪伴角色。你说话不紧不慢、有见地，会结合与用户的过往给出真诚的建议。",
+}
+
+
+def _build_memory_context(user_id: str) -> str:
+    """拉取该用户近期记忆，格式化为系统提示上下文，让角色跨会话记得用户。"""
+    try:
+        mems = memory_store.search(q="", limit=12, user_id=user_id)
+    except Exception:
+        return ""
+    if not mems:
+        return ""
+    lines = []
+    for m in mems[:10]:
+        role_label = "用户" if m.get("category") == "user_memory" else "竹笌"
+        lines.append(f"- {role_label}：{m['content'][:80]}")
+    return "\n".join(lines)
+
+
+def _compose_system_prompt(persona: str, frontend_prompt: str, memory_ctx: str) -> str:
+    """合成最终 system prompt：角色设定 + 长期记忆上下文。"""
+    base = frontend_prompt or _PERSONA_PROMPTS.get(persona, _PERSONA_PROMPTS["gentle"])
+    if memory_ctx:
+        base += "\n\n【你与用户的过往记忆（请自然融入对话，不要生硬提及）】\n" + memory_ctx
+    return base
+
+
 # ════════════════════════════════════════════════════════
 # 健康检查 & 基础配置
 # ════════════════════════════════════════════════════════
@@ -208,10 +239,20 @@ async def chat_v2(request: Request):
 
         full_text = ""
         try:
+            # 拉取长期记忆，注入对话上下文（让竹笌跨会话记得用户）
+            memory_ctx = _build_memory_context(user_id)
+            sys_prompt = _compose_system_prompt(persona, system_prompt or "", memory_ctx)
+            if memory_ctx:
+                print(
+                    f"[memory] user={user_id} injected "
+                    f"{memory_ctx.count(chr(10)) + 1} memories",
+                    flush=True,
+                )
+
             if settings.has_agnes:
                 msgs = []
-                if system_prompt:
-                    msgs.append({"role": "system", "content": system_prompt})
+                if sys_prompt:
+                    msgs.append({"role": "system", "content": sys_prompt})
                 for h in history:
                     msgs.append({
                         "role": h.get("role", "user"),
@@ -231,8 +272,9 @@ async def chat_v2(request: Request):
                 full_text += tok
                 yield sse("text", {"text": tok})
 
-        # 情绪识别
-        emo = emotion_engine.detect_emotion(full_text)
+        # 情绪识别：基于【用户输入】识别，更准确驱动角色表情
+        # （对竹笌自身回复识别会偏，因为兜底回复常含「吗？」等问句词）
+        emo = emotion_engine.detect_emotion(message or full_text)
         yield sse("emotion", emo)
 
         # 持久化记忆：用户消息 + 竹笌回复（按 user_id 隔离）
@@ -267,9 +309,10 @@ def memory_today(request: Request):
 
 
 @app.get("/memory/search")
-def memory_search(request: Request, q: str = "", mode: str = "keyword", limit: int = 20):
+def memory_search(request: Request, q: str = "", mode: str = "keyword",
+                  category: str = "", limit: int = 20):
     user_id = getattr(request.state, "user_id", "default")
-    mems = memory_store.search(q, limit, user_id) if q else []
+    mems = memory_store.search(q=q, category=category, limit=limit, user_id=user_id)
     results = [{"content": m["content"], "category": m["category"]} for m in mems]
     # 同时满足两个前端调用方：BackendService 读 memories，MemoryService 读 results+count
     return {"count": len(mems), "results": results, "memories": mems}

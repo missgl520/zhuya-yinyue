@@ -25,17 +25,28 @@ _KEYWORDS = {
 }
 
 
+# 强情感集合：一旦命中即作为主情绪候选，优先级高于认知/好奇类
+# （如「开心」应优先于回复里常见的「吗？」问句词 curious）。
+_STRONG_EMOTIONS = {
+    "happy", "sad", "angry", "fearful", "guilt", "ashamed",
+    "disgust", "frustration", "attachment",
+}
+
+
 def detect_emotion(text: str) -> dict:
     """返回 {emotion, confidence, scores}"""
     scores = {}
     for emo, kws in _KEYWORDS.items():
         hit = sum(1 for k in kws if k in (text or ""))
-        scores[emo] = round(min(1.0, hit * 0.3), 3)
+        # 强情感命中基础分更高，避免被问句词（curious/surprised）反超
+        base = 0.5 if emo in _STRONG_EMOTIONS else 0.3
+        scores[emo] = round(min(1.0, hit * base), 3)
 
     active = {k: v for k, v in scores.items() if v > 0}
     if not active:
         return {"emotion": "neutral", "confidence": 0.6, "scores": scores}
 
-    top = max(active, key=active.get)
+    # 并列时优先强情感，其次按分数降序
+    top = max(active, key=lambda k: (k in _STRONG_EMOTIONS, active[k]))
     confidence = round(min(0.96, 0.5 + active[top] * 0.45), 3)
     return {"emotion": top, "confidence": confidence, "scores": scores}

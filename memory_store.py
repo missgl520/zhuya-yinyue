@@ -62,15 +62,37 @@ def get_today(user_id: str = "default") -> list:
     return [_row_to_dict(r) for r in rows]
 
 
-def search(q: str, limit: int = 20, user_id: str = "default") -> list:
-    """加密后 SQL LIKE 无法命中密文，改为拉取该用户全部记忆、内存解密后按子串过滤。
+def _relevance(d: dict, q_lower: str, importance: float) -> float:
+    """相关性打分：命中词数 + 重要性 + 时间新近。无查询词时返回非负（按时间）。"""
+    if q_lower:
+        cnt = d["content"].lower().count(q_lower)
+        if cnt == 0:
+            return -1.0  # 不匹配
+        score = cnt * 1.0
+    else:
+        score = 0.0
+    score += float(importance or 0.5) * 0.5
+    day = (d.get("created_at") or "")[:10]
+    today = datetime.date.today().isoformat()
+    yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+    if day == today:
+        score += 2.0
+    elif day == yesterday:
+        score += 1.0
+    return score
 
-    个人数据量小，全表扫描可接受；既保证静态加密，又不丢失搜索能力。
+
+def search(q: str = "", category: str = "", limit: int = 20,
+           user_id: str = "default") -> list:
+    """加密后 SQL LIKE 无法命中密文，改为拉取该用户全部记忆、内存解密后过滤。
+
+    支持：category 可选过滤；q 子串匹配；结果按相关性（命中词数 + 重要性 +
+    时间新近）降序排序。个人数据量小，全表扫描可接受。
     """
     with db.conn() as conn:
         rows = conn.execute(
             text(
-                "SELECT id, content, category, tags, created_at FROM memories "
+                "SELECT id, content, category, tags, importance, created_at FROM memories "
                 "WHERE user_id = :uid ORDER BY id DESC"
             ),
             {"uid": user_id},
@@ -79,12 +101,37 @@ def search(q: str, limit: int = 20, user_id: str = "default") -> list:
     out = []
     for r in rows:
         d = _row_to_dict(r)
-        if q_lower and q_lower not in d["content"].lower():
+        if category and d.get("category") != category:
             continue
+        rel = _relevance(d, q_lower, getattr(r, "importance", 0.5))
+        if rel < 0:
+            continue
+        d["relevance"] = round(rel, 3)
         out.append(d)
-        if len(out) >= limit:
-            break
-    return out
+    out.sort(key=lambda x: x["relevance"], reverse=True)
+    for d in out:
+        d.pop("relevance", None)
+    return out[:limit]
+
+
+def _rule_summary(user_msgs: list) -> str:
+    """把当天用户消息聚合成一句摘要（规则版，无需外部模型）。"""
+    if not user_msgs:
+        return ""
+    wake = settings.WAKE_WORD_DEFAULT
+    cleaned = []
+    for m in user_msgs:
+        c = (m or "").strip()
+        if wake and c.startswith(wake):
+            c = c[len(wake):].strip()
+        if c:
+            cleaned.append(c)
+    if not cleaned:
+        return ""
+    text = "；".join(cleaned)
+    if len(text) > 120:
+        text = text[:120] + "…"
+    return text
 
 
 def summaries(user_id: str = "default") -> list:
@@ -97,11 +144,23 @@ def summaries(user_id: str = "default") -> list:
     for r in rows:
         day = (r.created_at or "")[:10]
         by_day.setdefault(day, [])
-        by_day[day].append((r.role, r.content))
+        try:
+            plain = encryption.decrypt(r.content)
+        except Exception:
+            plain = r.content or ""
+        by_day[day].append((r.role, plain))
     out = []
     for day, items in sorted(by_day.items(), reverse=True):
-        first_user = next((c for role, c in items if role == "user"), "")
-        out.append({"date": day, "count": len(items), "content": first_user})
+        user_msgs = [c for role, c in items if role == "user"]
+        summary = _rule_summary(user_msgs)
+        out.append({
+            "date": day,
+            "count": len(items),
+            "user_count": len(user_msgs),
+            "summary": summary,
+            "first_user": user_msgs[0] if user_msgs else "",
+            "content": summary,  # 兼容旧字段名
+        })
     return out
 
 
