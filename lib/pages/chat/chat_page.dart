@@ -270,22 +270,22 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ),
           ),
 
-          // 2. 消息虚线框：只占用屏幕上半部分（约 55%），顶部与屏幕齐平。
-          //    这样 Live2D 人物固定在下半屏居中显示，消息再多也不会把人物挤走。
+          // 2. 消息区：屏幕顶部横条（高 22%），虚线到最顶端，
+          //    下方完整留出给 Live2D 人物显示，避免消息气泡盖住角色。
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            height: MediaQuery.of(context).size.height * 0.55,
+            height: MediaQuery.of(context).size.height * 0.22,
             child: GestureDetector(
               onTap: () => _focusNode.unfocus(),
               child: DashedContainer(
-                borderColor: AppTheme.bambooDeep.withValues(alpha: 0.55),
+                borderColor: AppTheme.bambooDeep.withValues(alpha: 0.35),
                 borderRadius: 0,
                 backgroundColor: isDark
-                    ? Colors.black.withValues(alpha: 0.34)
-                    : AppTheme.bamboo.withValues(alpha: 0.06),
-                strokeWidth: 1.5,
+                    ? Colors.black.withValues(alpha: 0.18)
+                    : Colors.white.withValues(alpha: 0.22),
+                strokeWidth: 1.0,
                 padding: EdgeInsets.zero,
                 child: (messages.isEmpty &&
                         !(status == ConversationStatus.writing &&
@@ -746,20 +746,22 @@ class _LetterEntry extends StatelessWidget {
           const SizedBox(height: 6),
           Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.72,
+              maxWidth: MediaQuery.of(context).size.width * 0.56,
             ),
-            decoration: isUser
-                ? null
-                : BoxDecoration(
-                    border: Border(
-                      left: BorderSide(
-                        color: AppTheme.bambooDeep.withValues(alpha: 0.28),
-                        width: 1.5,
-                        strokeAlign: BorderSide.strokeAlignInside,
-                      ),
-                    ),
-                  ),
-            padding: const EdgeInsets.only(left: 12),
+            decoration: BoxDecoration(
+              color: isUser
+                  ? Colors.white.withValues(alpha: 0.55)
+                  : Colors.white.withValues(alpha: 0.42),
+              borderRadius: BorderRadius.circular(10),
+              border: Border(
+                left: BorderSide(
+                  color: AppTheme.bambooDeep.withValues(alpha: 0.28),
+                  width: 1.5,
+                  strokeAlign: BorderSide.strokeAlignInside,
+                ),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             child: Text(
               message.content,
               style: Theme.of(context).textTheme.bodyMedium,

@@ -53,7 +53,7 @@ target_include_directories(flutter_live2d
     ${STB_PATH}
 )
 
-target_compile_definitions(flutter_live2d PRIVATE ZHUYA_LAYOUT_ADJUSTED=3)
+target_compile_definitions(flutter_live2d PRIVATE ZHUYA_LAYOUT_ADJUSTED=4)
 
 target_link_libraries(flutter_live2d
   CubismFramework

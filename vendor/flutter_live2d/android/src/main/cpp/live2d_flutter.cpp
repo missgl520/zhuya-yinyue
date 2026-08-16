@@ -233,12 +233,11 @@ Java_com_linh18nd_flutter_1live2d_Live2DBridge_nativeOnSurfaceChanged(JNIEnv*, j
         }
         else
         {
-            // 竖屏：让角色完整显示在屏幕底部居中。
-            // Live2D 现在铺满全屏（顶栏透明叠加在模型上方），
-            // 所以把宽度缩到 1.6、中心下移 -0.25，让人物站在
-            // 主屏底部，头部可自然延伸到顶栏区域，脚不超出屏幕。
-            modelMatrix->SetWidth(1.6f);
-            modelMatrix->SetCenterPosition(0.0f, -0.25f);
+            // 竖屏：让人物完整站在主屏底部，同时给顶部消息条留出空间。
+            // 宽度缩到 1.5、中心下移到 -0.15，使人物头部自然落在
+            // 消息条下方，身体居中显示，不被气泡遮挡。
+            modelMatrix->SetWidth(1.5f);
+            modelMatrix->SetCenterPosition(0.0f, -0.15f);
         }
     }
 }
