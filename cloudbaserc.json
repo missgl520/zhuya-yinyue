@@ -1,0 +1,6 @@
+{
+  "envId": "zhuya-d2g09hrf1dff724ae",
+  "cloudrun": {
+    "name": "zhuyu-backend"
+  }
+}

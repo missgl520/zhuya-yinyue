@@ -14,6 +14,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import base64
+import hashlib
 import os
 
 from cryptography.fernet import Fernet, InvalidToken
@@ -24,12 +25,34 @@ KEY_FILE = os.path.join(settings.DATA_DIR, ".enc_key")
 _KEY = None  # 延迟加载，避免模块导入期就触发文件写入
 
 
+def _normalize_key(raw: str) -> bytes:
+    """把任意字符串转成 Fernet 可用的 32 字节 url-safe base64 密钥。
+
+    Fernet 要求 key 是 32 字节且经 urlsafe_b64encode 编码。用户直接给的环境
+    变量可能是原始 32 字节、普通 base64、urlsafe base64，甚至任意密码短语；
+    这里统一用 SHA256 派生 32 字节，再编码成 Fernet 接受的 bytes，避免部署时
+    因格式/截断/转义问题崩溃。
+    """
+    # 先去掉常见包装（引号、空白），防止用户把带引号的字符串贴进来
+    text = raw.strip().strip('"').strip("'")
+    # 尝试直接按 urlsafe base64 解码；若成功且是 32 字节就直接用
+    try:
+        decoded = base64.urlsafe_b64decode(text)
+        if len(decoded) == 32:
+            return base64.urlsafe_b64encode(decoded)
+    except Exception:
+        pass
+    # 否则把原始字符串当种子，SHA256 派生 32 字节
+    digest = hashlib.sha256(text.encode("utf-8")).digest()
+    return base64.urlsafe_b64encode(digest)
+
+
 def _load_key() -> bytes:
     # 1) 环境变量优先（生产部署把密钥放在环境变量 / Secrets 里）
     env_key = os.getenv("ZHUYU_ENC_KEY")
     if env_key:
         try:
-            return base64.urlsafe_b64decode(env_key)
+            return _normalize_key(env_key)
         except Exception:
             # 格式错误则回退到本地密钥文件
             pass
