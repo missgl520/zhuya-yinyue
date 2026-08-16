@@ -131,6 +131,39 @@ class SettingsSheet extends ConsumerWidget {
               children: const SizedBox.shrink(),
             ),
 
+            _MenuDivider(isDark: isDark),
+
+            _MenuItem(
+              title: '个人信息收集清单',
+              subtitle: '我们收集哪些信息',
+              icon: Icons.list_alt_outlined,
+              expanded: false,
+              onTap: () => context.push('/info?type=pi-collection'),
+              children: const SizedBox.shrink(),
+            ),
+
+            _MenuDivider(isDark: isDark),
+
+            _MenuItem(
+              title: '与第三方共享清单',
+              subtitle: '信息共享给哪些服务商',
+              icon: Icons.share_outlined,
+              expanded: false,
+              onTap: () => context.push('/info?type=third-party-sharing'),
+              children: const SizedBox.shrink(),
+            ),
+
+            _MenuDivider(isDark: isDark),
+
+            _MenuItem(
+              title: '版本介绍',
+              subtitle: '功能与版本历史',
+              icon: Icons.new_releases_outlined,
+              expanded: false,
+              onTap: () => context.push('/info?type=version-intro'),
+              children: const SizedBox.shrink(),
+            ),
+
             // 底部安全距离
             const SizedBox(height: 12),
           ],

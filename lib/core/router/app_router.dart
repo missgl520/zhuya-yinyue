@@ -16,6 +16,7 @@ import '../../pages/chat/chat_page.dart';
 import '../../pages/settings/memory_history_page.dart';
 import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
+import '../../pages/settings/info_modules_page.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -72,6 +73,15 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final type = state.uri.queryParameters['type'] ?? 'privacy';
           return LegalPage(type: type);
+        },
+      ),
+      // 信息模块页（个人信息收集 / 第三方共享 / 版本介绍）
+      GoRoute(
+        path: '/info',
+        name: 'info',
+        builder: (context, state) {
+          final type = state.uri.queryParameters['type'] ?? 'version-intro';
+          return InfoModulesPage(type: type);
         },
       ),
     ],
