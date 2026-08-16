@@ -38,6 +38,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   late AnimationController _thinkingController;
 
+  /// 竹笌 Logo 呼吸灯动画：模拟心跳/呼吸，透明度 0.55 -> 1.0 循环
+  late AnimationController _breathController;
+  late Animation<double> _breathAnimation;
+
   // ━━━ 生命周期 ━━━
 
   @override
@@ -51,6 +55,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
           _thinkingController.forward(from: 0);
         }
       });
+
+    _breathController = AnimationController(
+      duration: const Duration(milliseconds: 1800),
+      vsync: this,
+    );
+    _breathAnimation = Tween<double>(begin: 0.55, end: 1.0).animate(
+      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
+    );
+    _breathController.repeat(reverse: true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 初始化 Live2D
@@ -172,6 +185,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     _scrollController.dispose();
     _focusNode.dispose();
     _thinkingController.dispose();
+    _breathController.dispose();
     super.dispose();
   }
 
@@ -305,16 +319,38 @@ class _ChatPageState extends ConsumerState<ChatPage>
             onTap: () => MenuPanel.show(context),
             child: Row(
               children: [
-                Text(
-                  '竹笌',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).textTheme.bodyLarge?.color,
-                    letterSpacing: 2,
-                  ),
+                // 竹笌 Logo + 呼吸灯心跳感应
+                AnimatedBuilder(
+                  animation: _breathAnimation,
+                  builder: (context, child) {
+                    return Opacity(
+                      opacity: _breathAnimation.value,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.bamboo.withValues(
+                                alpha: 0.25 * _breathAnimation.value,
+                              ),
+                              blurRadius: 10,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
+                            'assets/logo.png',
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 8),
                 Icon(Icons.menu, size: 14, color: Colors.grey.shade400),
               ],
             ),
@@ -361,8 +397,13 @@ class _ChatPageState extends ConsumerState<ChatPage>
       );
     }
 
+    // 空闲状态不需要状态徽章，保持顶栏简洁
+    if (status == ConversationStatus.idle) {
+      return const SizedBox.shrink();
+    }
+
     final label = switch (status) {
-      ConversationStatus.idle     => '在的',
+      ConversationStatus.idle     => '',
       ConversationStatus.thinking => '在想',
       ConversationStatus.writing => '在写',
       ConversationStatus.speaking => '在说',

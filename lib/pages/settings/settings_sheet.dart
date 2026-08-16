@@ -102,7 +102,7 @@ class SettingsSheet extends ConsumerWidget {
 
             _MenuItem(
               title: '后端地址',
-              subtitle: BackendConfig.instance.baseUrl,
+              subtitle: '管理后端连接',
               icon: Icons.cloud_outlined,
               expanded: expanded == 'backend',
               onTap: () => _toggle(ref, 'backend'),
@@ -556,20 +556,98 @@ class _VoiceContent extends StatelessWidget {
 }
 
 // ── 模型设置 内容 ──
-class _ModelContent extends ConsumerWidget {
+// 支持：Agnes 国内版 / 国际版（预设）+ 自定义 API 链接模型
+class _ModelContent extends ConsumerStatefulWidget {
   const _ModelContent();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final useCN = ref.watch(agnesUseCNProvider);
+  ConsumerState<_ModelContent> createState() => _ModelContentState();
+}
 
+class _ModelContentState extends ConsumerState<_ModelContent> {
+  final _baseUrlCtrl = TextEditingController();
+  final _apiKeyCtrl = TextEditingController();
+  final _modelIdCtrl = TextEditingController();
+  late String _source;
+  String? _hint;
+  bool _saving = false;
+
+  static const _kSource = 'apiModelSource';
+  static const _kBaseUrl = 'customApiBaseUrl';
+  static const _kApiKey = 'customApiKey';
+  static const _kModelId = 'customModelId';
+
+  @override
+  void initState() {
+    super.initState();
+    final box = Hive.box('settings');
+    _source = box.get(_kSource, defaultValue: 'agnes-cn') as String;
+    _baseUrlCtrl.text = box.get(_kBaseUrl, defaultValue: '') as String;
+    _apiKeyCtrl.text = box.get(_kApiKey, defaultValue: '') as String;
+    _modelIdCtrl.text = box.get(_kModelId, defaultValue: '') as String;
+  }
+
+  @override
+  void dispose() {
+    _baseUrlCtrl.dispose();
+    _apiKeyCtrl.dispose();
+    _modelIdCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _setSource(String source) async {
+    if (source == 'agnes-intl' && _source == 'agnes-cn') {
+      final ok = await _confirmCrossBorder(context);
+      if (!ok) return;
+      Hive.box('settings').put('agnesUseCNCrossBorderAck', true);
+    }
+    setState(() => _source = source);
+
+    final box = Hive.box('settings');
+    await box.put(_kSource, source);
+    // 兼容旧 Provider
+    final useCN = source == 'agnes-cn';
+    box.put('agnesUseCN', useCN);
+    ref.read(agnesServiceProvider).setUseCN(useCN);
+  }
+
+  Future<void> _saveCustomApi() async {
+    final baseUrl = _baseUrlCtrl.text.trim();
+    final modelId = _modelIdCtrl.text.trim();
+
+    if (baseUrl.isEmpty || modelId.isEmpty) {
+      setState(() => _hint = '请填写 API 地址与模型 ID');
+      return;
+    }
+    if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+      setState(() => _hint = 'API 地址需以 http:// 或 https:// 开头');
+      return;
+    }
+
+    setState(() => _saving = true);
+    final box = Hive.box('settings');
+    await box.put(_kBaseUrl, baseUrl);
+    await box.put(_kApiKey, _apiKeyCtrl.text.trim());
+    await box.put(_kModelId, modelId);
+    await box.put(_kSource, 'custom');
+    setState(() {
+      _source = 'custom';
+      _saving = false;
+      _hint = '自定义 API 已保存 ✅';
+    });
+    box.put('agnesUseCN', false);
+    ref.read(agnesServiceProvider).setUseCN(false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'AI 模型来源',
+            '添加 API 链接模型',
             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey),
           ),
           const SizedBox(height: 10),
@@ -578,35 +656,96 @@ class _ModelContent extends ConsumerWidget {
               Expanded(
                 child: _ModeChip(
                   label: '🇨🇳 国内版',
-                  selected: useCN,
-                  onTap: () {
-                    ref.read(agnesUseCNProvider.notifier).state = true;
-                    Hive.box('settings').put('agnesUseCN', true);
-                    ref.read(agnesServiceProvider).setUseCN(true);
-                  },
+                  selected: _source == 'agnes-cn',
+                  onTap: () => _setSource('agnes-cn'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: _ModeChip(
                   label: '🌐 国际版',
-                  selected: !useCN,
-                  onTap: () async {
-                    // 切换到国际版可能涉及数据出境，需用户单独明确确认
-                    if (useCN) {
-                      final ok = await _confirmCrossBorder(context);
-                      if (!ok) return;
-                      Hive.box('settings').put('agnesUseCNCrossBorderAck', true);
-                    }
-                    ref.read(agnesUseCNProvider.notifier).state = false;
-                    Hive.box('settings').put('agnesUseCN', false);
-                    ref.read(agnesServiceProvider).setUseCN(false);
-                  },
+                  selected: _source == 'agnes-intl',
+                  onTap: () => _setSource('agnes-intl'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ModeChip(
+                  label: '🔗 自定义',
+                  selected: _source == 'custom',
+                  onTap: () => _setSource('custom'),
                 ),
               ),
             ],
           ),
-          if (!useCN) _buildCrossBorderBanner(),
+          if (_source == 'agnes-intl') _buildCrossBorderBanner(),
+          if (_source == 'custom') ...[
+            const SizedBox(height: 16),
+            TextField(
+              controller: _baseUrlCtrl,
+              decoration: const InputDecoration(
+                labelText: 'API 地址',
+                hintText: '例如 https://api.agnes-ai.cn/v1',
+                border: OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: Icon(Icons.link, size: 18),
+              ),
+              keyboardType: TextInputType.url,
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _apiKeyCtrl,
+              decoration: const InputDecoration(
+                labelText: 'API 密钥',
+                hintText: 'sk-...',
+                border: OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: Icon(Icons.key, size: 18),
+              ),
+              obscureText: true,
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _modelIdCtrl,
+              decoration: const InputDecoration(
+                labelText: '模型 ID',
+                hintText: '例如 agnes-2.0-flash',
+                border: OutlineInputBorder(),
+                isDense: true,
+                prefixIcon: Icon(Icons.memory, size: 18),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _saveCustomApi,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.save, size: 18),
+                    label: const Text('保存 API 链接'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppTheme.bamboo,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_hint != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _hint!,
+                style: TextStyle(fontSize: 12, color: _hint!.contains('✅') ? AppTheme.bamboo : Colors.red.shade600),
+              ),
+            ),
         ],
       ),
     );
@@ -624,7 +763,7 @@ class _ModelContent extends ConsumerWidget {
           width: 0.5,
         ),
       ),
-      child: Row(
+      child: const Row(
         children: [
           Icon(Icons.warning_amber_outlined, color: Color(0xFFB5811F), size: 18),
           SizedBox(width: 8),

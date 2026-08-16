@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/backend_service.dart';
@@ -143,7 +144,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
             _MenuTile(
               icon: Icons.cloud_outlined,
               title: '后端地址',
-              subtitle: BackendConfig.instance.baseUrl,
+              subtitle: '管理后端连接',
               onTap: () => _showBackendUrlEditor(context),
             ),
 
@@ -967,18 +968,32 @@ class _Live2DModelPickerDialogState
     return path.split('/').last;
   }
 
-  /// 打开 Live2D 官方示例下载页（复制链接给用户手动打开）
+  /// 打开 Live2D 官方示例下载页
   Future<void> _openLive2DWebsite() async {
-    const url = 'https://www.live2d.com/en/learn/sample/';
-    await Clipboard.setData(const ClipboardData(text: url));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('链接已复制，打开浏览器粘贴访问'),
-        behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 3),
-      ),
-    );
+    final uri = Uri.parse('https://www.live2d.com/en/learn/sample/');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      // 兜底：若系统无法打开外部浏览器，复制链接
+      await Clipboard.setData(const ClipboardData(text: 'https://www.live2d.com/en/learn/sample/'));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('无法唤起浏览器，链接已复制到剪贴板'),
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // 弹窗打开后自动唤起文件夹选择器，引导用户一步完成「打开文件夹并搜索模型」
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scanLocalModels();
+    });
   }
 
   @override
@@ -1024,27 +1039,37 @@ class _Live2DModelPickerDialogState
     }
 
     if (_localModels.isEmpty) {
-      // Step 2b：没找到模型，显示下载提示
+      // Step 2b：未找到模型，引导用户打开文件夹搜索或去官网下载
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.folder_off_outlined, color: Colors.grey.shade400, size: 48),
+          Icon(Icons.folder_open_outlined, color: Colors.grey.shade400, size: 48),
           const SizedBox(height: 12),
           const Text(
-            '未在选定目录中找到 Live2D 模型文件',
+            '未找到 Live2D 模型文件',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 13, color: Colors.black54),
           ),
           const SizedBox(height: 6),
           Text(
-            '请下载 Live2D 示例模型后，选择包含 .model3.json 的文件夹',
+            '点击「打开文件夹」选择一个包含 .model3.json 的目录，\n竹笌会自动搜索可用模型',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
           ),
           const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: _scanLocalModels,
+            icon: const Icon(Icons.folder_open, size: 16),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.bamboo,
+              foregroundColor: Colors.white,
+            ),
+            label: const Text('打开文件夹'),
+          ),
+          const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _openLive2DWebsite,
-            icon: const Icon(Icons.download, size: 16),
+            icon: const Icon(Icons.open_in_new, size: 16),
             label: const Text('去 Live2D 官网下载'),
           ),
         ],
