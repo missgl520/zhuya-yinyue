@@ -28,28 +28,42 @@ class TtsService {
   // ── 初始化 ──
   Future<void> init() async {
     if (_isInitialized) return;
+    try {
+      await _tts.setLanguage('zh-CN');
+      await _tts.setSpeechRate(0.5);   // 适中语速
+      await _tts.setVolume(1.0);       // 全音量
+      await _tts.setPitch(1.0);        // 正常音调
 
-    await _tts.setLanguage('zh-CN');
-    await _tts.setSpeechRate(0.5);   // 适中语速
-    await _tts.setVolume(1.0);       // 全音量
-    await _tts.setPitch(1.0);        // 正常音调
+      // 阻塞等待播完，避免 AI 回复和语音交叉
+      await _tts.awaitSpeakCompletion(true);
 
-    // 阻塞等待播完，避免 AI 回复和语音交叉
-    await _tts.awaitSpeakCompletion(true);
-
-    // 回调：记录播放状态（供 UI 显示竹笌"在说"）
-    _tts.setStartHandler(()  => _isPlaying = true);
-    _tts.setCompletionHandler(() => _isPlaying = false);
-    _tts.setErrorHandler((_) => _isPlaying = false);
-    _tts.setCancelHandler(()  => _isPlaying = false);
-
-    _isInitialized = true;
+      // 回调：记录播放状态（供 UI 显示竹笌"在说"）
+      _tts.setStartHandler(()  => _isPlaying = true);
+      _tts.setCompletionHandler(() => _isPlaying = false);
+      _tts.setErrorHandler((_) => _isPlaying = false);
+      _tts.setCancelHandler(()  => _isPlaying = false);
+    } catch (e) {
+      // 部分设备/模拟器无系统 TTS 引擎（如国产无 GMS 机型），初始化会失败。
+      // 捕获后保持「已初始化但不可用」状态：文字照常显示，仅跳过朗读，不崩。
+      _isInitialized = true;
+      _ttsAvailable = false;
+    }
   }
+
+  /// 系统 TTS 引擎是否可用（无引擎时 UI 可据此禁用「朗读」入口）
+  bool get ttsAvailable => _ttsAvailable;
+  bool _ttsAvailable = true;
 
   // ── 朗读文本 ──
   Future<void> speak(String text) async {
     if (!_isInitialized) await init();
-    await _tts.speak(text);
+    if (!_ttsAvailable) return; // 无引擎，静默跳过，文字仍正常显示
+    try {
+      await _tts.speak(text);
+    } catch (_) {
+      // 朗读失败不阻断对话流程
+      _isPlaying = false;
+    }
   }
 
   // ── 停止朗读 ──

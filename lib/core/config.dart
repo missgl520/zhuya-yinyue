@@ -69,10 +69,19 @@ class BackendConfig {
     // 打开名为 'settings' 的 Hive 盒子
     final box = await Hive.openBox('settings');
 
-    // 恢复各配置项（如果 Hive 没有，就用默认值）
-    _baseUrl = box.get('backendUrl', defaultValue: _defaultBaseUrl);
-    _wakeWord = box.get('wakeWord', defaultValue: _defaultWakeWord);
-    _persona = box.get('persona', defaultValue: _defaultPersona);
+    // 恢复各配置项。优先级规则（修复「切换后端域名后出错了」的坑）：
+    //   - 若用户曾在设置页显式改过（Hive 中确实存过该 key），则用 Hive 值；
+    //   - 否则一律用编译期 dart-define 注入的值（含云端生产 URL）。
+    // 这样打包时注入的 ZHUYU_API_BASE_URL 在首次安装上一定生效，不会被空 Hive 覆盖。
+    _baseUrl = box.containsKey('backendUrl')
+        ? box.get('backendUrl')
+        : _defaultBaseUrl;
+    _wakeWord = box.containsKey('wakeWord')
+        ? box.get('wakeWord')
+        : _defaultWakeWord;
+    _persona = box.containsKey('persona')
+        ? box.get('persona')
+        : _defaultPersona;
   }
 
   // ── 运行时修改（会自动写入 Hive）────────────────────
