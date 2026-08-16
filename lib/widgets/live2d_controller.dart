@@ -99,9 +99,7 @@ class ZhuaLive2DController {
     try {
       switch (status) {
         case ZhuaLive2DStatus.idle:
-          await viewController.setExpression(0);
-          await viewController.startMotion(group: 'Idle', priority: 1);
-          await viewController.setParameter('ParamMouthOpenY', 0.0);
+          await resetToIdle();
         case ZhuaLive2DStatus.thinking:
           await viewController.setExpression(1); // exp_02 思考
         case ZhuaLive2DStatus.speaking:
@@ -116,6 +114,29 @@ class ZhuaLive2DController {
       }
     } catch (e) {
       debugPrint('[ZhuaLive2D] 动画失败: $e');
+    }
+  }
+
+  /// 强制恢复到待机常态：停止唇形同步、闭嘴、回默认表情、重播 Idle 动画。
+  ///
+  /// 用于对话结束或状态切回 idle 时，避免人物卡在说话/思考表情或半张嘴姿态。
+  Future<void> resetToIdle() async {
+    if (!_modelLoaded || _disposed) return;
+    if (_longPressing) return;
+    try {
+      stopLipSync();
+      await viewController.setParameter('ParamMouthOpenY', 0.0);
+      await viewController.setExpression(0); // 默认表情
+      await viewController.startMotion(group: 'Idle', priority: 1);
+      // 二次确认：300ms 后再把嘴闭上，防止 lipSync 末帧残留
+      Future.delayed(const Duration(milliseconds: 300), () async {
+        if (_disposed || _longPressing) return;
+        try {
+          await viewController.setParameter('ParamMouthOpenY', 0.0);
+        } catch (_) {}
+      });
+    } catch (e) {
+      debugPrint('[ZhuaLive2D] 恢复 idle 失败: $e');
     }
   }
 

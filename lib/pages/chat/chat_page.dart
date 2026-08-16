@@ -38,10 +38,6 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   late AnimationController _thinkingController;
 
-  /// 竹笌 Logo 呼吸灯动画：模拟心跳/呼吸，透明度 0.55 -> 1.0 循环
-  late AnimationController _breathController;
-  late Animation<double> _breathAnimation;
-
   // ━━━ 生命周期 ━━━
 
   @override
@@ -55,15 +51,6 @@ class _ChatPageState extends ConsumerState<ChatPage>
           _thinkingController.forward(from: 0);
         }
       });
-
-    _breathController = AnimationController(
-      duration: const Duration(milliseconds: 1800),
-      vsync: this,
-    );
-    _breathAnimation = Tween<double>(begin: 0.55, end: 1.0).animate(
-      CurvedAnimation(parent: _breathController, curve: Curves.easeInOut),
-    );
-    _breathController.repeat(reverse: true);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 初始化 Live2D
@@ -157,7 +144,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final ctrl = ref.read(old_providers.live2dControllerProvider);
     switch (status) {
       case ConversationStatus.idle:
-        ctrl.setStatus(ZhuaLive2DStatus.idle);
+        // 空闲时强制恢复到待机常态：停止唇形同步、闭嘴、回默认表情、重播 Idle。
+        ctrl.resetToIdle();
       case ConversationStatus.thinking:
         ctrl.setStatus(ZhuaLive2DStatus.thinking);
       case ConversationStatus.writing:
@@ -185,7 +173,6 @@ class _ChatPageState extends ConsumerState<ChatPage>
     _scrollController.dispose();
     _focusNode.dispose();
     _thinkingController.dispose();
-    _breathController.dispose();
     super.dispose();
   }
 
@@ -250,70 +237,80 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final messages = chatState.messages;
 
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildTopBar(isDark),
-            Expanded(
-              child: Stack(
-                children: [
-                  // 1. Live2D 位于主屏底部居中（底层，视觉主角）。
-                  //    高度限制为主屏的 90%，底部与输入栏留 8px 呼吸边距，
-                  //    避免角色被顶栏/底栏截断，同时不覆盖底部输入区。
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: FractionallySizedBox(
-                      heightFactor: 0.9,
-                      alignment: Alignment.bottomCenter,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Consumer(
-                          builder: (context, ref, _) {
-                            final l2dCtrl =
-                                ref.watch(old_providers.live2dControllerProvider);
-                            final lipSync =
-                                ref.watch(new_providers.lipSyncStreamProvider);
-                            lipSync.whenData((mouth) {
-                              l2dCtrl.viewController.setParameter(
-                                'ParamMouthOpenY',
-                                mouth.clamp(0.0, 0.75),
-                              );
-                            });
-                            return ZhuaLive2DWidget(
-                              controller: l2dCtrl.viewController,
-                              onTap: () {},
-                            );
-                          },
+      body: Stack(
+        children: [
+          // 1. Live2D 全屏底层（包括顶部状态栏区域），让角色成为背景视觉主角。
+          //    顶栏透明叠加在模型上方，实现「顶层透明，显示 2D 模型层」。
+          Positioned.fill(
+            child: Consumer(
+              builder: (context, ref, _) {
+                final l2dCtrl =
+                    ref.watch(old_providers.live2dControllerProvider);
+                final lipSync =
+                    ref.watch(new_providers.lipSyncStreamProvider);
+                lipSync.whenData((mouth) {
+                  l2dCtrl.viewController.setParameter(
+                    'ParamMouthOpenY',
+                    mouth.clamp(0.0, 0.75),
+                  );
+                });
+                return ZhuaLive2DWidget(
+                  controller: l2dCtrl.viewController,
+                  onTap: () {},
+                );
+              },
+            ),
+          ),
+
+          // 2. 主内容层：SafeArea 保证状态栏/导航栏安全，
+          //    顶栏透明，消息/输入区正常叠加。
+          SafeArea(
+            child: Column(
+              children: [
+                _buildTopBar(isDark),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // 消息半透明浮层（中层，嫩绿虚线边框，让人物透出）
+                      Positioned.fill(
+                        child: GestureDetector(
+                          onTap: () => _focusNode.unfocus(),
+                          child: DashedContainer(
+                            borderColor: AppTheme.bamboo.withValues(alpha: 0.5),
+                            borderRadius: 0,
+                            backgroundColor: isDark
+                                ? Colors.black.withValues(alpha: 0.34)
+                                : AppTheme.bamboo.withValues(alpha: 0.06),
+                            padding: EdgeInsets.zero,
+                            child: (messages.isEmpty &&
+                                    !(status == ConversationStatus.writing &&
+                                        (chatState.currentText?.isNotEmpty ??
+                                            false)))
+                                ? const SizedBox.shrink()
+                                : _buildLetterList(chatState, status),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  // 2. 消息半透明浮层（中层，嫩绿虚线边框，让人物透出）
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () => _focusNode.unfocus(),
-                      child: DashedContainer(
-                        borderColor: AppTheme.bamboo.withValues(alpha: 0.5),
-                        borderRadius: 0,
-                        backgroundColor: isDark
-                            ? Colors.black.withValues(alpha: 0.34)
-                            : AppTheme.bamboo.withValues(alpha: 0.06),
-                        padding: EdgeInsets.zero,
-                        child: (messages.isEmpty &&
-                                !(status == ConversationStatus.writing &&
-                                    (chatState.currentText?.isNotEmpty ?? false)))
-                            ? _buildEmpty(isDark, status)
-                            : _buildLetterList(chatState, status),
-                      ),
-                    ),
+                      // 空状态提示：放在输入框上方（主屏底部），而不是屏幕中央。
+                      if (messages.isEmpty &&
+                          !(status == ConversationStatus.writing &&
+                              (chatState.currentText?.isNotEmpty ?? false)))
+                        Align(
+                          alignment: Alignment.bottomCenter,
+                          child: Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _buildEmptyHint(isDark, status),
+                          ),
+                        ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                _buildInputArea(status, chatState.errorMessage),
+              ],
             ),
-            _buildInputArea(status, chatState.errorMessage),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -321,62 +318,44 @@ class _ChatPageState extends ConsumerState<ChatPage>
   // ━━━ 顶栏 ━━━
 
   Widget _buildTopBar(bool isDark) {
+    // 顶栏作为透明 overlay：不设置背景色，让下方 Live2D 模型透出来。
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
         children: [
+          // 菜单入口：保留，但不再放 logo
           GestureDetector(
             onTap: () => MenuPanel.show(context),
-            child: Row(
-              children: [
-                // 竹笌 Logo + 呼吸灯心跳感应
-                AnimatedBuilder(
-                  animation: _breathAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _breathAnimation.value,
-                      child: Container(
-                        width: 28,
-                        height: 28,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: AppTheme.bamboo.withValues(
-                                alpha: 0.25 * _breathAnimation.value,
-                              ),
-                              blurRadius: 10,
-                              spreadRadius: 1,
-                            ),
-                          ],
-                        ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            'assets/logo.png',
-                            fit: BoxFit.cover,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 8),
-                Icon(Icons.menu, size: 14, color: Colors.grey.shade400),
-              ],
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: (isDark ? Colors.black : Colors.white)
+                    .withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.menu, size: 20, color: Colors.grey.shade600),
             ),
           ),
           const Spacer(),
           _buildStatusBadge(),
           const SizedBox(width: 12),
-          IconButton(
-            onPressed: () => SettingsSheet.show(context),
-            icon: Icon(
-              Icons.settings_outlined,
-              size: 22,
-              color: Theme.of(context).textTheme.bodySmall?.color,
+          // 设置按钮也加半透明底，避免在复杂模型背景上看不清
+          Container(
+            decoration: BoxDecoration(
+              color: (isDark ? Colors.black : Colors.white)
+                  .withValues(alpha: 0.45),
+              shape: BoxShape.circle,
             ),
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            child: IconButton(
+              onPressed: () => SettingsSheet.show(context),
+              icon: Icon(
+                Icons.settings_outlined,
+                size: 22,
+                color: Theme.of(context).textTheme.bodySmall?.color,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            ),
           ),
         ],
       ),
@@ -445,31 +424,30 @@ class _ChatPageState extends ConsumerState<ChatPage>
     );
   }
 
-  // ━━━ 空状态 ━━━
+  // ━━━ 空状态提示 ━━━
 
-  Widget _buildEmpty(bool isDark, ConversationStatus status) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '…',
-            style: TextStyle(
-              fontSize: 48,
-              color: AppTheme.bambooDeep.withValues(alpha: 0.3),
-              height: 1,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            status == ConversationStatus.idle ? '竹笌在这里' : '竹笌在等你',
-            style: TextStyle(
-              fontSize: 15,
-              color: Theme.of(context).textTheme.bodySmall?.color,
-              letterSpacing: 3,
-            ),
-          ),
-        ],
+  /// 空状态时显示在输入框上方的轻提示（而不是屏幕中央），
+  /// 避免遮挡居中的 Live2D 角色。
+  Widget _buildEmptyHint(bool isDark, ConversationStatus status) {
+    final label = status == ConversationStatus.idle ? '竹笌在这里' : '竹笌在等你';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+      decoration: BoxDecoration(
+        color: (isDark ? Colors.black : Colors.white)
+            .withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: AppTheme.bamboo.withValues(alpha: 0.35),
+          width: 0.5,
+        ),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 13,
+          color: Theme.of(context).textTheme.bodySmall?.color,
+          letterSpacing: 2,
+        ),
       ),
     );
   }
