@@ -10,13 +10,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/config.dart';
+import '../../core/auth/client_auth.dart';
 import '../../core/theme/app_theme.dart';
 
 final _memoryDio = Dio(BaseOptions(
   baseUrl: BackendConfig.instance.baseUrl,
   connectTimeout: const Duration(seconds: 10),
   receiveTimeout: const Duration(seconds: 10),
-));
+))..interceptors.add(SigningInterceptor());
 
 class MemoryHistoryPage extends ConsumerStatefulWidget {
   const MemoryHistoryPage({super.key});
@@ -45,6 +46,8 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
   }
 
   Future<void> _loadTodayMemories() async {
+    // 跟随设置页修改的后端地址（否则换地址后记忆页仍打旧地址）
+    _memoryDio.options.baseUrl = BackendConfig.instance.baseUrl;
     setState(() { _loading = true; _error = null; });
     try {
       final resp = await _memoryDio.get('/memory/today');
@@ -60,6 +63,8 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
   }
 
   Future<void> _search(String query) async {
+    // 跟随设置页修改的后端地址
+    _memoryDio.options.baseUrl = BackendConfig.instance.baseUrl;
     if (query.trim().isEmpty) {
       _loadTodayMemories();
       return;

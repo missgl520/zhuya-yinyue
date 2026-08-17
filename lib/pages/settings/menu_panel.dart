@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_theme.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../core/services/backend_service.dart';
+import '../../domain/entities/emotion.dart';
 import '../../presentation/providers/app_providers.dart';
 import '../voice/voice_call_page.dart';
 
@@ -602,6 +603,20 @@ class _RelationshipBanner extends StatelessWidget {
                       : _levelDescription(affinity.level),
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
+                if (currentEmotion != 'neutral') ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(emotionEmoji(currentEmotion),
+                          style: const TextStyle(fontSize: 13)),
+                      const SizedBox(width: 4),
+                      Text(
+                        '现在${emotionLabel(currentEmotion)}',
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

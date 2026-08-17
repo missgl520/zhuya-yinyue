@@ -17,11 +17,11 @@ import '../../presentation/providers/app_providers.dart' as old_providers;
 import '../../domain/entities/entities.dart' as entities;
 import '../../presentation/providers/app_providers.dart' as new_providers;
 import '../../presentation/providers/chat_provider.dart';
+import '../../domain/entities/emotion.dart';
 import '../../widgets/live2d_controller.dart';
 import '../../widgets/live2d_widget.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/image_picker_button.dart';
-import '../../widgets/dashed_container.dart';
 import '../../core/theme/app_theme.dart';
 
 class ChatPage extends ConsumerStatefulWidget {
@@ -247,8 +247,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // 1. Live2D 全屏底层（包括顶部状态栏区域），让角色成为背景视觉主角。
-          //    顶栏透明叠加在模型上方，实现「顶层透明，显示 2D 模型层」。
+          // 1. Live2D 整屏放在 Stack 底层；flutter_live2d 用 HybridComposition
+          //    把原生 GL 视图合成在 Flutter 之上，所以这一层全屏就让人物成为
+          //    背景。消息区/输入区靠几何遮挡 + 半透明磨砂浮层叠在上面（见区块 2/3）。
           Positioned.fill(
             child: Consumer(
               builder: (context, ref, _) {
@@ -270,29 +271,23 @@ class _ChatPageState extends ConsumerState<ChatPage>
             ),
           ),
 
-          // 2. 消息区：屏幕顶部横条（高 22%），虚线到最顶端，
-          //    下方完整留出给 Live2D 人物显示，避免消息气泡盖住角色。
+          // 2. 消息区：不要任何外层容器（虚线框/磨砂玻璃/圆角卡片），让气泡
+          //    直接浮在 Live2D 全屏背景之上 —— 用户反馈外框挡住人物。
+          //    仅保留：占位（输入框上方的让位）+ 收键盘手势 + ListView 内部 padding。
           Positioned(
-            top: 0,
+            bottom: 140, // 紧贴输入区上方
             left: 0,
             right: 0,
-            height: MediaQuery.of(context).size.height * 0.22,
+            height: MediaQuery.of(context).size.height * 0.38,
             child: GestureDetector(
+              // 用户点消息区空白处收起键盘（不再有外框收焦点时）
+              behavior: HitTestBehavior.opaque,
               onTap: () => _focusNode.unfocus(),
-              child: DashedContainer(
-                borderColor: AppTheme.bambooDeep.withValues(alpha: 0.35),
-                borderRadius: 0,
-                backgroundColor: isDark
-                    ? Colors.black.withValues(alpha: 0.18)
-                    : Colors.white.withValues(alpha: 0.22),
-                strokeWidth: 1.0,
-                padding: EdgeInsets.zero,
-                child: (messages.isEmpty &&
-                        !(status == ConversationStatus.writing &&
-                            (chatState.currentText?.isNotEmpty ?? false)))
-                    ? const SizedBox.shrink()
-                    : _buildLetterList(chatState, status),
-              ),
+              child: (messages.isEmpty &&
+                      !(status == ConversationStatus.writing &&
+                          (chatState.currentText?.isNotEmpty ?? false)))
+                  ? _buildEmptyOrErrorPlaceholder(chatState, isDark)
+                  : _buildLetterList(chatState, status),
             ),
           ),
           // 3. 顶栏 + 输入区：SafeArea 保证不被状态栏/导航栏遮挡，
@@ -335,6 +330,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
   Widget _buildTopBar(bool isDark) {
     // 顶栏作为透明 overlay：不设置任何背景/圆底，只保留带阴影的线型图标，
     // 让 Live2D 人物/模型从图标后面完全透出来。
+    // 情绪胶囊：竹笌当前情绪（非「平静」时才显示，避免空状态干扰）
+    final currentEmotion = ref.watch(currentEmotionProvider);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: Row(
@@ -353,6 +350,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
               ),
             ),
           ),
+          // 情绪胶囊（仅非平静时显示）
+          if (currentEmotion != null && currentEmotion.emotion != 'neutral')
+            _buildEmotionChip(currentEmotion.emotion),
           const Spacer(),
           _buildStatusBadge(),
           const SizedBox(width: 12),
@@ -360,6 +360,41 @@ class _ChatPageState extends ConsumerState<ChatPage>
           GestureDetector(
             onTap: () => SettingsSheet.show(context),
             child: const _TopIcon(icon: Icons.settings_outlined),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ━━━ 情绪胶囊 ━━━
+
+  Widget _buildEmotionChip(String label) {
+    return Container(
+      margin: const EdgeInsets.only(left: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.28),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(emotionEmoji(label), style: const TextStyle(fontSize: 14)),
+          const SizedBox(width: 4),
+          Text(
+            emotionLabel(label),
+            style: const TextStyle(
+              fontSize: 12,
+              color: Colors.white,
+              letterSpacing: 1,
+              shadows: [
+                Shadow(
+                  color: Colors.black45,
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -456,6 +491,90 @@ class _ChatPageState extends ConsumerState<ChatPage>
     );
   }
 
+  // ━━━ 空状态 / 错误占位 ━━━
+
+  /// 消息列表为空时的占位：错误时显示「竹笌连不上 + 错误详情」，
+  /// 无错误时显示「竹笌在这里」轻提示。两者都在虚线消息框内（输入框上方），
+  /// 避免「出错了」徽章独自飘在顶栏让用户感觉聊天错位。
+  Widget _buildEmptyOrErrorPlaceholder(ChatState chatState, bool isDark) {
+    final hasError = chatState.errorMessage != null;
+    if (!hasError) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(24, 18, 24, 12),
+        child: Row(
+          children: [
+            Image.asset(
+              'assets/logo_mascot.png',
+              width: 22,
+              height: 22,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '竹笌在这里，等你说第一句话',
+              style: TextStyle(
+                fontSize: 13,
+                color: AppTheme.bambooDeep.withValues(alpha: 0.75),
+                letterSpacing: 2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 18,
+                color: AppTheme.bambooDeep,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                '竹笌连不上',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.bambooDeep,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            chatState.errorMessage!,
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).textTheme.bodySmall?.color,
+              height: 1.5,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              '检查后端地址或点击重试 · 写点什么给竹笌 ↑',
+              style: TextStyle(
+                fontSize: 11,
+                color: AppTheme.bambooDeep.withValues(alpha: 0.55),
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ━━━ 信纸列表 ━━━
 
   Widget _buildLetterList(ChatState chatState, ConversationStatus status) {
@@ -466,14 +585,11 @@ class _ChatPageState extends ConsumerState<ChatPage>
         (chatState.currentText?.isNotEmpty ?? false);
     return ListView.builder(
       controller: _scrollController,
-      // 虚线框已顶到屏幕最顶端，这里给列表留出状态栏 + 顶栏的高度，
-      // 避免消息被顶栏按钮/状态栏遮挡。
-      padding: EdgeInsets.fromLTRB(
-        24,
-        MediaQuery.of(context).padding.top + 60,
-        24,
-        16,
-      ),
+      // 消息区域已挪到底部（输入框上方），不再预留顶栏空间。
+      padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+      // 顶部 +1 是给一个 8px 间距（避免首条气泡贴边）。
+      // 错误提示统一走顶部「出错了」徽章（_buildStatusBadge），不
+      // 再在消息区中央叠 banner——免得挡住 Live2D 人物。
       itemCount: messages.length + 1 + (typing ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == 0) return const SizedBox(height: 8);
@@ -481,7 +597,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
         if (typing && msgIndex == messages.length) {
           return _LetterEntry.typing(chatState.currentText!);
         }
-        return _LetterEntry(message: messages[msgIndex]);
+        return _LetterEntry(
+          message: messages[msgIndex],
+          distanceFromBottom: messages.length - msgIndex, // 1 = 最新
+        );
       },
     );
   }
@@ -507,8 +626,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
+      // 输入区透明叠加在 Live2D 全屏背景之上（不做磨砂），仅保留一条
+      // 极细的顶部分隔线区分输入区与上方消息浮层。
       decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
+        color: Colors.transparent,
         border: Border(
           top: BorderSide(
             color: Theme.of(context).dividerColor,
@@ -677,8 +798,14 @@ class _TopIcon extends StatelessWidget {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class _LetterEntry extends StatelessWidget {
   final entities.Message message;
+  /// 这条消息距离列表底部多远（1 = 最新，n = 最旧）。
+  /// 用于「互动三条后渐隐」：最近 3 条完全不透明，更早的逐条变淡。
+  final int distanceFromBottom;
 
-  const _LetterEntry({required this.message});
+  const _LetterEntry({
+    required this.message,
+    required this.distanceFromBottom,
+  });
 
   /// 打字中临时条目：展示 SSE 正在流式输出的文字 + 打字光标。
   _LetterEntry.typing(String text)
@@ -688,13 +815,38 @@ class _LetterEntry extends StatelessWidget {
           content: text,
           timestamp: DateTime.now(),
           isStreaming: true,
-        );
+        ),
+        // 正在输入的条目视为最新，保持完全不透明。
+        distanceFromBottom = 1;
 
   bool get isUser => message.role == 'user';
 
+  /// 根据距离底部的差值计算渐隐 alpha，并用 AnimatedOpacity 平滑过渡。
+  Widget _buildEntry(Widget realContent) {
+    // 最近 3 条（distanceFromBottom 1/2/3）始终完全不透明。
+    if (distanceFromBottom <= 3) {
+      return AnimatedOpacity(
+        opacity: 1.0,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+        child: realContent,
+      );
+    }
+    const double step = 0.25;
+    final double alpha =
+        (1.0 - step * (distanceFromBottom - 3)).clamp(0.18, 1.0);
+    // 第4条 0.75 / 第5条 0.5 / 第6条 0.25 / 更旧 clamp 在 0.18（保证可读）。
+    return AnimatedOpacity(
+      opacity: alpha,
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOut,
+      child: realContent,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final Widget realContent = Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: Column(
         crossAxisAlignment:
@@ -744,27 +896,37 @@ class _LetterEntry extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+          // 聊天气泡：用户（我）竹笌绿实底 + 白字靠右；AI（竹笌）浅白底 + 深字靠左。
+          // 圆角 + 一圈细边 + 轻投影，从原来的「左侧竖线半透明块」升级为真正的气泡。
           Container(
             constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.56,
+              maxWidth: MediaQuery.of(context).size.width * 0.62,
             ),
             decoration: BoxDecoration(
               color: isUser
-                  ? Colors.white.withValues(alpha: 0.55)
-                  : Colors.white.withValues(alpha: 0.42),
-              borderRadius: BorderRadius.circular(10),
-              border: Border(
-                left: BorderSide(
-                  color: AppTheme.bambooDeep.withValues(alpha: 0.28),
-                  width: 1.5,
-                  strokeAlign: BorderSide.strokeAlignInside,
-                ),
+                  ? AppTheme.bambooDeep.withValues(alpha: 0.92)
+                  : Colors.white.withValues(alpha: 0.9),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isUser
+                    ? AppTheme.bambooDeep.withValues(alpha: 0.92)
+                    : AppTheme.bambooDeep.withValues(alpha: 0.18),
+                width: 1,
               ),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.08),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
             child: Text(
               message.content,
-              style: Theme.of(context).textTheme.bodyMedium,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: isUser ? Colors.white : null,
+                  ),
             ),
           ),
           if (message.isStreaming)
@@ -775,6 +937,7 @@ class _LetterEntry extends StatelessWidget {
         ],
       ),
     );
+    return _buildEntry(realContent);
   }
 }
 

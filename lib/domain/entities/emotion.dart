@@ -79,3 +79,65 @@ class Emotion {
   @override
   String toString() => 'Emotion($emotion, confidence=$confidence)';
 }
+
+/// 情绪标签 → emoji 图标（UI 展示用，集中管理避免散落各处）
+String emotionEmoji(String label) {
+  switch (label.toLowerCase()) {
+    case 'happy':
+    case 'joy':
+      return '😊';
+    case 'sad':
+      return '😢';
+    case 'angry':
+      return '😠';
+    case 'anxious':
+      return '😟';
+    case 'fearful':
+    case 'fear':
+      return '😨';
+    case 'surprised':
+      return '😲';
+    case 'disgusted':
+      return '🤢';
+    case 'curious':
+      return '🤔';
+    case 'proud':
+      return '🥰';
+    case 'ashamed':
+      return '😳';
+    case 'neutral':
+    default:
+      return '😐';
+  }
+}
+
+/// 情绪标签 → 中文文案
+String emotionLabel(String label) {
+  switch (label.toLowerCase()) {
+    case 'happy':
+    case 'joy':
+      return '开心';
+    case 'sad':
+      return '难过';
+    case 'angry':
+      return '生气';
+    case 'anxious':
+      return '焦虑';
+    case 'fearful':
+    case 'fear':
+      return '害怕';
+    case 'surprised':
+      return '惊讶';
+    case 'disgusted':
+      return '反感';
+    case 'curious':
+      return '好奇';
+    case 'proud':
+      return '自豪';
+    case 'ashamed':
+      return '羞愧';
+    case 'neutral':
+    default:
+      return '平静';
+  }
+}
