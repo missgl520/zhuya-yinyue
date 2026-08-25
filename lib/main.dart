@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'core/sync/sync_engine.dart';
 import 'presentation/providers/app_providers.dart';
 
 void main() async {
@@ -21,6 +22,9 @@ void main() async {
 
   // 初始化后端配置（必须先于 App 运行，因为它决定 Dio baseUrl）
   await BackendConfig.instance.init();
+
+  // 启动离线优先同步引擎（监听联网恢复，自动补发发件箱消息）
+  await SyncEngine.instance.start();
 
   // 首次启动：若用户从未改过后端地址，将默认值落库（默认 = 模拟器地址，
   // 生产构建通过 --dart-define=ZHUYU_API_BASE_URL 注入域名后此处即域名）。

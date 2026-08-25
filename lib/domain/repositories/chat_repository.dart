@@ -37,6 +37,9 @@ enum ChatEventType {
 
   /// 好感度变化
   affinity,
+
+  /// 离线已保存（消息进发件箱，等待联网后自动同步）
+  offlineSaved,
 }
 
 /// 对话事件（流式事件载体）
@@ -47,6 +50,7 @@ class ChatEvent {
   final String? emotion;     // type=emotion 时：情绪标签
   final Map<String, dynamic>? affinity; // type=affinity 时：好感度数据
   final String? error;      // type=error 时：错误信息
+  final String? clientMsgId; // type=offlineSaved 时：本条消息的幂等 id
 
   const ChatEvent({
     required this.type,
@@ -54,6 +58,7 @@ class ChatEvent {
     this.emotion,
     this.affinity,
     this.error,
+    this.clientMsgId,
   });
 
   /// 工厂方法：创建一个 token 事件
@@ -75,6 +80,12 @@ class ChatEvent {
   factory ChatEvent.emotion(String emotionLabel) => ChatEvent(
         type: ChatEventType.emotion,
         emotion: emotionLabel,
+      );
+
+  /// 工厂方法：离线已保存事件（消息进发件箱，待联网同步）
+  factory ChatEvent.offlineSaved(String clientMsgId) => ChatEvent(
+        type: ChatEventType.offlineSaved,
+        clientMsgId: clientMsgId,
       );
 }
 
@@ -106,4 +117,10 @@ abstract class ChatRepository {
 
   /// 检查后端是否在线
   Future<bool> isOnline();
+
+  /// 从本地加载持久化的对话历史（离线优先：UI 先读本地立即显示）
+  Future<List<Message>> loadLocalHistory({int limit = 200});
+
+  /// 本地同步完成通知流（SyncEngine flush 成功后触发，供 UI 刷新）
+  Stream<void> get localSyncStream;
 }

@@ -69,6 +69,7 @@ class ChatService {
     required String message,
     required List<Message> history,
     String? systemPrompt,
+    String? clientMsgId,
     required void Function(String token) onText,
     void Function(String emotion, double confidence)? onEmotion,
     void Function(Map<String, dynamic> affinity)? onAffinity,
@@ -95,6 +96,10 @@ class ChatService {
 
       if (systemPrompt != null) {
         body['system_prompt'] = systemPrompt;
+      }
+      // 幂等 id：断网补发时带上，供后端去重（后端忽略不影响）
+      if (clientMsgId != null) {
+        body['client_msg_id'] = clientMsgId;
       }
 
       // ── 第2步：发起 POST 请求 ─────────────────────────

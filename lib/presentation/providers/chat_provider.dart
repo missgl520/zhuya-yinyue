@@ -27,6 +27,7 @@ import '../../domain/entities/emotion.dart';
 import '../../domain/entities/affinity.dart';
 import '../../data/repositories/chat_repository_impl.dart';
 import '../../domain/repositories/chat_repository.dart'; // ChatEventType
+import '../../core/sync/sync_engine.dart';
 
 // ════════════════════════════════════════════════════════════
 // 状态类型定义
@@ -113,9 +114,30 @@ class ChatState {
 class ChatNotifier extends StateNotifier<ChatState> {
   ChatNotifier() : super(ChatState.idle()) {
     _repository = ChatRepositoryImpl();
+    // 离线优先：本地同步完成后刷新当前消息列表
+    SyncEngine.instance.syncStream.listen((_) => loadFromLocal());
+    _loadInitial();
   }
 
   late final ChatRepositoryImpl _repository;
+
+  /// 启动后从本地加载历史（离线优先：先显示本地，再后台同步）
+  void _loadInitial() async {
+    await loadFromLocal();
+  }
+
+  /// 从本地持久化重新载入消息列表（SyncEngine 同步完成后也会调用）
+  Future<void> loadFromLocal() async {
+    if (state.status != ConversationStatus.idle) return; // 不打断进行中的对话
+    final local = await _repository.loadLocalHistory(limit: 200);
+    if (local.isNotEmpty) {
+      state = state.copyWith(
+        messages: local,
+        status: ConversationStatus.idle,
+        currentText: null,
+      );
+    }
+  }
 
   // ── 对话相关 ──────────────────────────────────────
 
@@ -193,6 +215,16 @@ class ChatNotifier extends StateNotifier<ChatState> {
             status: ConversationStatus.idle,
             messages: [...state.messages, assistantMsg],
             currentText: null,
+          );
+          break;
+
+        case ChatEventType.offlineSaved:
+          // 已离线保存进发件箱，联网后自动同步：不报硬错，标记待同步
+          state = state.copyWith(
+            status: ConversationStatus.idle,
+            messages: state.messages
+                .map((m) => m.copyWith(pendingSync: true))
+                .toList(),
           );
           break;
 

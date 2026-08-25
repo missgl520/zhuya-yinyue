@@ -17,7 +17,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import '../../core/services/backend_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../presentation/providers/app_providers.dart';
 
@@ -96,16 +95,6 @@ class SettingsSheet extends ConsumerWidget {
               expanded: expanded == 'model',
               onTap: () => _toggle(ref, 'model'),
               children: const _ModelContent(),
-            ),
-
-            _MenuDivider(isDark: isDark),
-
-            _MenuItem(
-              title: '后端地址',
-              subtitle: '管理后端连接',
-              expanded: expanded == 'backend',
-              onTap: () => _toggle(ref, 'backend'),
-              children: const _BackendUrlContent(),
             ),
 
             _MenuDivider(isDark: isDark),
@@ -291,113 +280,6 @@ class _MenuItem extends ConsumerWidget {
           duration: const Duration(milliseconds: 250),
         ),
       ],
-    );
-  }
-}
-
-// ── 后端地址 内容 ──
-class _BackendUrlContent extends StatefulWidget {
-  const _BackendUrlContent();
-
-  @override
-  State<_BackendUrlContent> createState() => _BackendUrlContentState();
-}
-
-class _BackendUrlContentState extends State<_BackendUrlContent> {
-  final _controller = TextEditingController(text: BackendConfig.instance.baseUrl);
-  bool _saving = false;
-  String? _hint;
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final url = _controller.text.trim();
-    if (url.isEmpty) return;
-    setState(() => _saving = true);
-    String? msg;
-    try {
-      BackendService.instance.setBackendUrl(url);
-      final ok = await BackendService.instance.healthCheck();
-      msg = ok
-          ? '已保存并成功连接后端 ✅'
-          : '已保存，但暂时连不上后端（请确认后端已启动、地址与端口正确）';
-    } catch (_) {
-      msg = '地址格式不正确：需以 http:// 或 https:// 开头';
-    }
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _hint = msg;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            '竹笌需要连接到后端才能聊天、记忆与同步。填写后端服务地址（http/https）。',
-            style: TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _controller,
-            decoration: const InputDecoration(
-              labelText: '后端地址',
-              hintText: '例如 http://192.168.1.100:8000',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
-            keyboardType: TextInputType.url,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _save(),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            '本机调试：电脑运行后端后用局域网 IP；安卓模拟器用 http://10.0.2.2:8000。'
-            '部署到云服务器后填公网域名，如 http://你的域名:8000（公网建议用 https）。',
-            style: TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed: _saving ? null : _save,
-                icon: _saving
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.save_outlined, size: 18),
-                label: const Text('保存'),
-              ),
-              if (_hint != null) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    _hint!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: _hint!.contains('✅')
-                          ? Colors.green
-                          : (isDark ? Colors.orangeAccent : Colors.deepOrange),
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

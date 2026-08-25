@@ -83,6 +83,9 @@ dependencies:
   flutter_live2d:
     path: ./vendor/flutter_live2d
 
+  # 3D 模型渲染（VRM/GLB 真全身 + 真抬腿验证用，model_viewer_plus 容器）
+  model_viewer_plus: ^1.10.0
+
   # ═══════════════════════════════════════════════════════
   # 权限
   # ═══════════════════════════════════════════════════════
@@ -104,6 +107,8 @@ dependencies:
   file_picker: ^8.1.7
   # 接口请求签名（HMAC-SHA256，与后端 auth.py 对齐）
   crypto: ^3.0.6
+  # 网络连通性监听（离线优先：SyncEngine 用于检测联网恢复）
+  connectivity_plus: ^7.0.0
   # 图片选择（相册 / 相机）
   image_picker: ^1.1.2
   # 本地存储静态加密（AES-256-CBC，密钥存 secure storage）
@@ -131,6 +136,11 @@ flutter:
     - assets/live2d/ren/Ren.2048/
     - assets/live2d/ren/expressions/
     - assets/live2d/ren/motions/
+    # 官方完整版 Ren（腿真绑定，替代竹笌简化版）：同样需显式列出各子目录
+    - assets/live2d/ren_official/
+    - assets/live2d/ren_official/Ren.2048/
+    - assets/live2d/ren_official/expressions/
+    - assets/live2d/ren_official/motions/
     # 全局 Logo 竹子图案（v1.9）
     - assets/logo.png
     - assets/logo_mascot.png
@@ -139,3 +149,17 @@ flutter:
     - assets/splash_char.png
     - assets/splash_char2.png
     - assets/splash_char_transparent.png
+    # 3D 验证用测试人形（Khronos CesiumMan，自带 walk 动画，Apache-2.0 免费）
+    - assets/vrm_test/CesiumMan.glb
+    # 程序化生成的竹笌 3D 少年人形（脚本生成，分部位配色 + 走路动画）
+    - assets/vrm_test/zhuyu_avatar.glb
+
+# ═══════════════════════════════════════════════════════
+# 依赖覆盖：model_viewer_plus 本地补丁副本
+# 官方 1.10.0 在 Android WebView 默认用 VirtualDisplay，导致 GLB 走路动画
+# 几分钟后冻结；已本地化补丁（displayWithHybridComposition: true，改用
+# Hybrid Composition 渲染），覆盖官方源以避免 flutter pub get 冲掉补丁。
+# 副本位于 packages/model_viewer_plus（相对本文件，已在非 C 盘）。
+dependency_overrides:
+  model_viewer_plus:
+    path: packages/model_viewer_plus

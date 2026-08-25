@@ -247,6 +247,16 @@ void Live2DModel::Update()
     if (_pose)
         _pose->UpdateParameters(_model, deltaTime);
 
+    // 程序化覆盖：在顶点计算(_model->Update)之前写入 working 参数，
+    // 覆盖 motion / physics / drag 对同一参数的写入。
+    // 关键：必须放在 _model->Update() 之前——Update 之后改参数对 Draw 无效
+    // （Draw 只画 Update 已算好的顶点缓存）。
+    for (const auto& kv : _paramOverrides)
+    {
+        const CubismId* id = CubismFramework::GetIdManager()->GetId(kv.first.c_str());
+        _model->SetParameterValue(id, kv.second);
+    }
+
     _model->Update();
 }
 
@@ -311,8 +321,18 @@ void Live2DModel::ResizeMaskBuffer(int width, int height)
 
 void Live2DModel::SetParameterValue(const Csm::csmChar* parameterId, Csm::csmFloat32 value)
 {
-    const CubismId* id = CubismFramework::GetIdManager()->GetId(parameterId);
-    _model->SetParameterValue(id, value);
+    // Dart 层 setParameter 走覆盖表，由 Update() 在顶点计算前统一应用。
+    _paramOverrides[std::string(parameterId)] = value;
+}
+
+void Live2DModel::SetParameterOverride(const Csm::csmChar* parameterId, Csm::csmFloat32 value)
+{
+    _paramOverrides[std::string(parameterId)] = value;
+}
+
+void Live2DModel::ClearParameterOverrides()
+{
+    _paramOverrides.clear();
 }
 
 void Live2DModel::SetMotionSpeed(Csm::csmFloat32 speed)

@@ -35,7 +35,7 @@ plugins {
     // AGP 8.11.1 与 Gradle 9.1 兼容，使用新 DSL（compileSdk 属性赋值）
     id("com.android.application") version "8.11.1" apply false
     // Kotlin Android 插件（仅声明，不应用）
-    id("org.jetbrains.kotlin.android") version "2.1.21" apply false
+    id("org.jetbrains.kotlin.android") version "2.2.20" apply false
 }
 
 // 包含 app 模块

@@ -13,6 +13,8 @@
 #include <GLES2/gl2.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
+#include <unordered_map>
+#include <string>
 #include <CubismFramework.hpp>
 #include <Math/CubismMatrix44.hpp>
 #include <Math/CubismViewMatrix.hpp>
@@ -95,6 +97,7 @@ static bool ReloadModelInternal(Live2DView* view, const char* dir, const char* f
 
     delete view->model;
     view->model = new Live2DModel(view->textureManager);
+    view->model->ClearParameterOverrides(); // 换模型时清空残留的覆盖参数
     view->model->LoadAssets(dir, file);
     if (!view->model->IsLoaded())
     {
@@ -259,6 +262,8 @@ Java_com_linh18nd_flutter_1live2d_Live2DBridge_nativeOnDrawFrame(JNIEnv*, jclass
 
     if (view->model && view->model->IsLoaded())
     {
+        // Update() 内部会在顶点计算前统一应用 Dart 层程序化覆盖参数
+        // （Live2DModel::Update 末尾、_model->Update 之前），使四肢/躯干/头持续灵动。
         view->model->Update();
         CubismMatrix44 mvp = view->projection;
         view->model->Draw(mvp);
@@ -368,7 +373,8 @@ Java_com_linh18nd_flutter_1live2d_Live2DBridge_nativeSetParameter(JNIEnv* env, j
     Live2DView* view = AsView(handle);
     if (!view || !view->model || !view->model->IsLoaded()) return;
     const char* id = env->GetStringUTFChars(parameterId, nullptr);
-    view->model->SetParameterValue(id, value);
+    // 写入程序化覆盖表（Update() 在顶点计算前应用，覆盖 motion/physics）。
+    view->model->SetParameterOverride(id, value);
     env->ReleaseStringUTFChars(parameterId, id);
 }
 

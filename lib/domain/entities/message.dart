@@ -55,6 +55,9 @@ class Message {
   /// 好感度变化量（来自后端，本次交互对好感度的影响）
   final double affinityDelta;
 
+  /// 是否等待后端同步（离线优先：用户消息发出但后端未收到时标记为 true）
+  final bool pendingSync;
+
   const Message({
     required this.id,
     required this.role,
@@ -63,6 +66,7 @@ class Message {
     this.isStreaming = false,
     this.emotion,
     this.affinityDelta = 0,
+    this.pendingSync = false,
   });
 
   /// 是否为用户消息
@@ -88,6 +92,7 @@ class Message {
     bool? isStreaming,
     String? emotion,
     double? affinityDelta,
+    bool? pendingSync,
   }) {
     return Message(
       id: id ?? this.id,
@@ -97,6 +102,7 @@ class Message {
       isStreaming: isStreaming ?? this.isStreaming,
       emotion: emotion ?? this.emotion,
       affinityDelta: affinityDelta ?? this.affinityDelta,
+      pendingSync: pendingSync ?? this.pendingSync,
     );
   }
 }

@@ -47,6 +47,8 @@
 
     <!-- 网络权限：用于访问 Agnes API、Cartesia TTS、ASR 等云服务 -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 网络状态监听：离线优先 SyncEngine 用于检测联网恢复 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <!-- 录音权限：语音输入与 ASR 语音识别需要 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <!-- 相机权限：拍照发送图片附件需要（非强制） -->

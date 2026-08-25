@@ -17,6 +17,8 @@
 //   本类被 providers 层调用，UI 不直接访问本类
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import '../../core/auth/client_auth.dart';
 import '../../core/config.dart';
@@ -184,9 +186,40 @@ class BackendService {
       return false;
     }
   }
+
+  // ════════════════════════════════════════════════════════
+  // TTS（本地 IndexTTS 2.5 语音合成）
+  // ════════════════════════════════════════════════════════
+
+  /// 调用本地 IndexTTS 微服务合成语音，返回 WAV 字节。
+  /// 失败（服务未起 / 网络断开）时返回 null，由 TtsService 静默降级。
+  Future<Uint8List?> tts({
+    required String text,
+    String? emotion,
+    String lang = 'ZH',
+    double speed = 1.0,
+  }) async {
+    try {
+      final resp = await _dio.post(
+        '/tts',
+        data: {'text': text, 'lang': lang, 'emotion': emotion, 'speed': speed},
+        options: Options(
+          responseType: ResponseType.bytes,
+          sendTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 120),
+        ),
+      );
+      if (resp.statusCode == 200 && resp.data != null) {
+        return Uint8List.fromList(resp.data as List<int>);
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 }
 
-/// 好感度数据（BackendService 内部用）
+  /// 好感度数据（BackendService 内部用）
 /// 命名为 BackendAffinityData 避免与 providers/app_providers_legacy.dart 的 AffinityData 冲突
 class BackendAffinityData {
   final double trust;

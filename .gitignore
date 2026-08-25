@@ -60,6 +60,13 @@ vendor/**/.dart_tool/
 logcat_*.txt
 shot_*.png
 *.log
+_*.png
+_*.xml
+qa_*.png
+qa_*.py
+screenshot_*.png
+v_*.png
+x1.png
 
 # WorkBuddy 本地数据（记忆/任务，非项目源码）
 .workbuddy/

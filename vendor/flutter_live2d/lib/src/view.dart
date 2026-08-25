@@ -68,7 +68,9 @@ class _Live2DViewImplState extends State<_Live2DViewImpl> {
           return AndroidViewSurface(
             controller: controller as AndroidViewController,
             gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+            // transparent：让触摸穿透到 Flutter 层，使上层 GestureDetector
+            // 能收到 tap/double-tap/long-press，驱动竹笌的触摸互动反应。
+            hitTestBehavior: PlatformViewHitTestBehavior.transparent,
           );
         },
         onCreatePlatformView: (params) {
@@ -98,7 +100,9 @@ class _Live2DViewImplState extends State<_Live2DViewImpl> {
         creationParamsCodec: const StandardMessageCodec(),
         onPlatformViewCreated: _handlePlatformViewCreated,
         gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-        hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+        // 同 Android：让触摸穿透到 Flutter 层，上层 GestureDetector 才能
+        // 收到 tap/double-tap/long-press，驱动竹笌的触摸互动反应。
+        hitTestBehavior: PlatformViewHitTestBehavior.transparent,
       );
     }
 

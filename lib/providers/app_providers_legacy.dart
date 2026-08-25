@@ -372,10 +372,10 @@ final ttsEnabledProvider = StateProvider<bool>((ref) {
   return box.get('ttsEnabled', defaultValue: true) as bool;
 });
 
-/// TTS 模式：'minimax'（情感TTS）| 'system'（系统TTS）
+/// TTS 模式：'minimax'（云端情感TTS）| 'system'（本地 IndexTTS 2.5 离线合成）
 final ttsModeProvider = StateProvider<String>((ref) {
   final box = Hive.box('settings');
-  return box.get('ttsMode', defaultValue: 'minimax') as String;
+  return box.get('ttsMode', defaultValue: 'system') as String;
 });
 
 /// ASR 监听状态：true = 正在录音识别
