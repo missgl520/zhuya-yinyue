@@ -17,6 +17,7 @@ import '../../pages/settings/memory_history_page.dart';
 import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
+import '../../pages/avatar/avatar_fullscreen_page.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -83,6 +84,12 @@ final routerProvider = Provider<GoRouter>((ref) {
           final type = state.uri.queryParameters['type'] ?? 'version-intro';
           return InfoModulesPage(type: type);
         },
+      ),
+      // 3D 角色独立全屏页（二级程序：把「狗子」放在独立全屏查看）
+      GoRoute(
+        path: '/avatar',
+        name: 'avatar',
+        builder: (context, state) => const AvatarFullscreenPage(),
       ),
     ],
   );

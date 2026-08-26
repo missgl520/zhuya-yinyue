@@ -13,6 +13,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_live2d/flutter_live2d.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../settings/settings_sheet.dart';
 import '../settings/menu_panel.dart';
 import '../../providers/app_providers_legacy.dart' as old_msg;
@@ -354,6 +355,12 @@ class _ChatPageState extends ConsumerState<ChatPage>
             _buildEmotionChip(currentEmotion.emotion),
           const Spacer(),
           _buildStatusBadge(),
+          const SizedBox(width: 12),
+          // 3D 角色入口（二级程序：进入独立全屏 3D 角色页）
+          GestureDetector(
+            onTap: () => context.push('/avatar'),
+            child: const _TopIcon(icon: Icons.view_in_ar_outlined),
+          ),
           const SizedBox(width: 12),
           // 设置按钮
           GestureDetector(
