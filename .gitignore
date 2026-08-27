@@ -7,3 +7,6 @@ data/
 *.db
 *.log
 _backend_run.log
+
+# 含密钥的配置，禁止提交（本地保留）
+config.py
