@@ -54,6 +54,7 @@ def _mysql_connect_args() -> dict:
         }
     }
 
+
 # ── 表定义（ORM-style 声明，用于建表 / 检查列）──
 memories_t = Table(
     "memories",
@@ -62,7 +63,9 @@ memories_t = Table(
     Column("role", String(32), nullable=False),
     Column("content", Text, nullable=False),
     Column("category", String(64), nullable=False, server_default="chat_memory"),
-    Column("tags", Text, nullable=True),  # TiDB/严格MySQL: TEXT列不可设default，由应用层兜底"[]"
+    Column(
+        "tags", Text, nullable=True
+    ),  # TiDB/严格MySQL: TEXT列不可设default，由应用层兜底"[]"
     Column("importance", Float, nullable=False, server_default="0.5"),
     Column("created_at", String(32), nullable=False),
     Column("user_id", String(128), nullable=False, server_default="default"),
@@ -93,8 +96,8 @@ def get_engine() -> Engine:
     if _engine is None:
         url = settings.DATABASE_URL
         kwargs: dict = {
-            "pool_pre_ping": True,    # 自动检测断连并重连
-            "pool_recycle": 3600,     # MySQL 默认 8h 超时，提前回收
+            "pool_pre_ping": True,  # 自动检测断连并重连
+            "pool_recycle": 3600,  # MySQL 默认 8h 超时，提前回收
             "echo": False,
         }
         # MySQL 需要 SSL（SQLPub / 云库），且自签证书需关闭主机名/证书校验
@@ -130,13 +133,17 @@ def init() -> None:
         mem_cols = [col["name"] for col in insp.get_columns("memories")]
         if "user_id" not in mem_cols:
             if _is_mysql(c):
-                c.execute(text(
-                    "ALTER TABLE memories ADD COLUMN user_id VARCHAR(128) NOT NULL DEFAULT 'default'"
-                ))
+                c.execute(
+                    text(
+                        "ALTER TABLE memories ADD COLUMN user_id VARCHAR(128) NOT NULL DEFAULT 'default'"
+                    )
+                )
             else:
-                c.execute(text(
-                    "ALTER TABLE memories ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'"
-                ))
+                c.execute(
+                    text(
+                        "ALTER TABLE memories ADD COLUMN user_id TEXT NOT NULL DEFAULT 'default'"
+                    )
+                )
             c.commit()
 
     migrate_legacy()
@@ -174,7 +181,9 @@ def migrate_legacy() -> None:
                     for k in ("persona", "wake_word"):
                         if k in s:
                             c.execute(
-                                text("INSERT IGNORE INTO kv(`key`, value) VALUES (:k, :v)"),
+                                text(
+                                    "INSERT IGNORE INTO kv(`key`, value) VALUES (:k, :v)"
+                                ),
                                 {"k": k, "v": encryption.encrypt(str(s[k]))},
                             )
                     c.commit()
@@ -223,7 +232,9 @@ def migrate_legacy() -> None:
                         text("INSERT INTO affinity(user_id, data) VALUES (:uid, :d)"),
                         {
                             "uid": r_uid,
-                            "d": encryption.encrypt(json.dumps(merged, ensure_ascii=False)),
+                            "d": encryption.encrypt(
+                                json.dumps(merged, ensure_ascii=False)
+                            ),
                         },
                     )
             c.commit()

@@ -24,8 +24,14 @@ def init() -> None:
     db.init()
 
 
-def store(role: str, content: str, category: str = "chat_memory",
-          tags=None, importance: float = 0.5, user_id: str = "default") -> int:
+def store(
+    role: str,
+    content: str,
+    category: str = "chat_memory",
+    tags=None,
+    importance: float = 0.5,
+    user_id: str = "default",
+) -> int:
     with db.conn() as conn:
         now = datetime.datetime.now().isoformat(timespec="seconds")
         result = conn.execute(
@@ -82,8 +88,9 @@ def _relevance(d: dict, q_lower: str, importance: float) -> float:
     return score
 
 
-def search(q: str = "", category: str = "", limit: int = 20,
-           user_id: str = "default") -> list:
+def search(
+    q: str = "", category: str = "", limit: int = 20, user_id: str = "default"
+) -> list:
     """加密后 SQL LIKE 无法命中密文，改为拉取该用户全部记忆、内存解密后过滤。
 
     支持：category 可选过滤；q 子串匹配；结果按相关性（命中词数 + 重要性 +
@@ -123,7 +130,7 @@ def _rule_summary(user_msgs: list) -> str:
     for m in user_msgs:
         c = (m or "").strip()
         if wake and c.startswith(wake):
-            c = c[len(wake):].strip()
+            c = c[len(wake) :].strip()
         if c:
             cleaned.append(c)
     if not cleaned:
@@ -137,7 +144,9 @@ def _rule_summary(user_msgs: list) -> str:
 def summaries(user_id: str = "default") -> list:
     with db.conn() as conn:
         rows = conn.execute(
-            text("SELECT role, content, created_at FROM memories WHERE user_id = :uid ORDER BY id ASC"),
+            text(
+                "SELECT role, content, created_at FROM memories WHERE user_id = :uid ORDER BY id ASC"
+            ),
             {"uid": user_id},
         ).fetchall()
     by_day = {}
@@ -153,14 +162,16 @@ def summaries(user_id: str = "default") -> list:
     for day, items in sorted(by_day.items(), reverse=True):
         user_msgs = [c for role, c in items if role == "user"]
         summary = _rule_summary(user_msgs)
-        out.append({
-            "date": day,
-            "count": len(items),
-            "user_count": len(user_msgs),
-            "summary": summary,
-            "first_user": user_msgs[0] if user_msgs else "",
-            "content": summary,  # 兼容旧字段名
-        })
+        out.append(
+            {
+                "date": day,
+                "count": len(items),
+                "user_count": len(user_msgs),
+                "summary": summary,
+                "first_user": user_msgs[0] if user_msgs else "",
+                "content": summary,  # 兼容旧字段名
+            }
+        )
     return out
 
 
@@ -186,7 +197,9 @@ def update_content(mem_id: int, content: str, user_id: str = "default") -> bool:
     """更正某条记忆内容（PIPL 更正权）。仅允许修改本人记录。"""
     with db.conn() as conn:
         cur = conn.execute(
-            text("UPDATE memories SET content = :content WHERE id = :mid AND user_id = :uid"),
+            text(
+                "UPDATE memories SET content = :content WHERE id = :mid AND user_id = :uid"
+            ),
             {"content": encryption.encrypt(content), "mid": mem_id, "uid": user_id},
         )
         conn.commit()

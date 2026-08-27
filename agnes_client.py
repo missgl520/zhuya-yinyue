@@ -21,8 +21,7 @@ _PERSONA_INTRO = {
 }
 
 
-async def stream_agnes(messages: list, temperature: float = 0.8,
-                       max_tokens: int = 500):
+async def stream_agnes(messages: list, temperature: float = 0.8, max_tokens: int = 500):
     """异步流式产出文本片段。无 key 或请求失败会抛异常，由调用方兜底。"""
     if not settings.has_agnes:
         raise RuntimeError("AGNES_API_KEY 未配置")

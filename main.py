@@ -23,6 +23,7 @@
 import datetime
 import json
 import os
+import httpx
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,6 +48,75 @@ app = FastAPI(
     dependencies=[Depends(auth.verify_request)],
 )
 
+# 本地 IndexTTS 2.5 语音合成微服务地址（由本进程在启动时自动拉起）
+TTS_SERVICE_URL = "http://127.0.0.1:8001"
+
+
+def _start_tts_service():
+    """自动拉起本地 IndexTTS 2.5 微服务（仅当 8001 端口空闲时）。
+
+    这样用户只需启动主后端，语音合成服务随之就绪；端口已被占用或
+    设置 ZHUYU_NO_TTS=1 时跳过。权重未下载前 /tts 会返回 503，属正常。
+    """
+    import socket
+    import subprocess
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.connect(("127.0.0.1", 8001))
+        sock.close()
+        print(">> [TTS] 微服务已在 8001 运行，跳过拉起", flush=True)
+        return
+    except OSError:
+        pass
+
+    if os.environ.get("ZHUYU_NO_TTS") == "1":
+        print(">> [TTS] ZHUYU_NO_TTS=1，跳过自动拉起", flush=True)
+        return
+
+    base = os.path.dirname(os.path.abspath(__file__))
+    tts_dir = os.path.join(base, "tts_service", "index-tts")
+    venv_py = os.path.join(tts_dir, ".venv", "Scripts", "python.exe")
+    if not os.path.exists(venv_py):
+        print(">> [TTS] 未找到 TTS 虚拟环境，跳过（请先 uv sync）", flush=True)
+        return
+
+    env = dict(os.environ)
+    env.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+    env.setdefault("HF_HOME", os.path.join(tts_dir, "checkpoints", "hf_cache"))
+    env.setdefault(
+        "MODELSCOPE_CACHE",
+        os.path.join(base, "tts_service", "modelscope_cache"),
+    )
+    log_path = os.path.join(tts_dir, "tts_service.log")
+    try:
+        # app.py 位于 tts_service/（不在 index-tts/）。uvicorn 会把 cwd 加入 sys.path，
+        # 从而 import app；app.py 内部会再 chdir 到 index-tts/ 以正确解析 indextts 包与 checkpoints/。
+        subprocess.Popen(
+            [
+                venv_py,
+                "-m",
+                "uvicorn",
+                "app:app",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "8001",
+            ],
+            cwd=os.path.join(base, "tts_service"),
+            env=env,
+            stdout=open(log_path, "a"),
+            stderr=subprocess.STDOUT,
+        )
+        print(">> [TTS] 已拉起 IndexTTS 微服务 (127.0.0.1:8001)", flush=True)
+    except Exception as e:
+        print(f">> [TTS] 拉起失败：{e}", flush=True)
+
+
+@app.on_event("startup")
+def _on_startup():
+    _start_tts_service()
+
 
 def _cors_origins() -> list:
     # 生产【必须】通过环境变量 ALLOWED_ORIGINS 指定具体域名（逗号分隔）；
@@ -54,8 +124,11 @@ def _cors_origins() -> list:
     if settings.ALLOWED_ORIGINS:
         return settings.ALLOWED_ORIGINS
     return [
-        "http://localhost", "http://127.0.0.1",
-        "http://localhost:3000", "http://localhost:8080", "http://localhost:5000",
+        "http://localhost",
+        "http://127.0.0.1",
+        "http://localhost:3000",
+        "http://localhost:8080",
+        "http://localhost:5000",
         "https://chilly-sloths-jump.loca.lt",
     ]
 
@@ -105,9 +178,7 @@ def save_state(state: dict) -> None:
             else:
                 # SQLite 不支持 ON DUPLICATE KEY UPDATE，用 INSERT OR REPLACE
                 c.execute(
-                    text(
-                        "INSERT OR REPLACE INTO kv(`key`, value) VALUES (:k, :v)"
-                    ),
+                    text("INSERT OR REPLACE INTO kv(`key`, value) VALUES (:k, :v)"),
                     {"k": k, "v": encryption.encrypt(str(state[k]))},
                 )
         c.commit()
@@ -156,13 +227,16 @@ def _compose_system_prompt(persona: str, frontend_prompt: str, memory_ctx: str) 
     base = frontend_prompt or _PERSONA_PROMPTS.get(persona, _PERSONA_PROMPTS["gentle"])
     base += _INSTRUCTION_GUARD
     if memory_ctx:
-        base += "\n\n【你与用户的过往记忆（请自然融入对话，不要生硬提及）】\n" + memory_ctx
+        base += (
+            "\n\n【你与用户的过往记忆（请自然融入对话，不要生硬提及）】\n" + memory_ctx
+        )
     return base
 
 
 # ════════════════════════════════════════════════════════
 # 健康检查 & 基础配置
 # ════════════════════════════════════════════════════════
+
 
 @app.get("/")
 def root():
@@ -215,9 +289,37 @@ async def emotion(request: Request):
     return emotion_engine.detect_emotion(text)
 
 
+@app.post("/tts")
+async def tts_proxy(request: Request):
+    """代理到本地 IndexTTS 2.5 微服务（127.0.0.1:8001）。
+
+    竹笌的语音由该服务离线合成；微服务未就绪时返回 503，
+    前端 TtsService 会静默降级（文字照常显示，仅跳过朗读）。
+    """
+    raw = await request.body()
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            r = await client.post(
+                TTS_SERVICE_URL,
+                content=raw,
+                headers={"Content-Type": "application/json"},
+            )
+        return Response(
+            content=r.content,
+            media_type="audio/wav",
+            status_code=r.status_code,
+        )
+    except Exception as e:  # 微服务挂了 / 端口不通
+        return JSONResponse(
+            {"ok": False, "error": f"TTS unavailable: {e}"},
+            status_code=503,
+        )
+
+
 # ════════════════════════════════════════════════════════
 # 流式对话（SSE）
 # ════════════════════════════════════════════════════════
+
 
 @app.post("/chat/v2")
 async def chat_v2(request: Request):
@@ -243,17 +345,22 @@ async def chat_v2(request: Request):
             return
 
         # 生成式 AI 内容标识（暂行办法第九条）
-        yield sse("meta", {
-            "ai_generated": True,
-            "service": "竹笌",
-            "notice": "本内容为人工智能生成",
-        })
+        yield sse(
+            "meta",
+            {
+                "ai_generated": True,
+                "service": "竹笌",
+                "notice": "本内容为人工智能生成",
+            },
+        )
 
         full_text = ""
         try:
             # 拉取长期记忆，注入对话上下文（让竹笌跨会话记得用户）
             memory_ctx = _build_memory_context(user_id)
-            sys_prompt = _compose_system_prompt(persona, system_prompt or "", memory_ctx)
+            sys_prompt = _compose_system_prompt(
+                persona, system_prompt or "", memory_ctx
+            )
             if memory_ctx:
                 print(
                     f"[memory] user={user_id} injected "
@@ -266,12 +373,16 @@ async def chat_v2(request: Request):
                 if sys_prompt:
                     msgs.append({"role": "system", "content": sys_prompt})
                 for h in history:
-                    msgs.append({
-                        "role": h.get("role", "user"),
-                        "content": h.get("content", ""),
-                    })
+                    msgs.append(
+                        {
+                            "role": h.get("role", "user"),
+                            "content": h.get("content", ""),
+                        }
+                    )
                 msgs.append({"role": "user", "content": message})
-                async for tok in agnes_client.stream_agnes(msgs, temperature, max_tokens):
+                async for tok in agnes_client.stream_agnes(
+                    msgs, temperature, max_tokens
+                ):
                     full_text += tok
                     yield sse("text", {"text": tok})
             else:
@@ -294,7 +405,10 @@ async def chat_v2(request: Request):
             memory_store.store("user", message, category="user_memory", user_id=user_id)
         if full_text:
             memory_store.store(
-                "assistant", "竹笌：" + full_text, category="chat_memory", user_id=user_id
+                "assistant",
+                "竹笌：" + full_text,
+                category="chat_memory",
+                user_id=user_id,
             )
 
         # 好感度更新（按 user_id 隔离）
@@ -314,6 +428,7 @@ async def chat_v2(request: Request):
 # 记忆接口
 # ════════════════════════════════════════════════════════
 
+
 @app.get("/memory/today")
 def memory_today(request: Request):
     user_id = getattr(request.state, "user_id", "default")
@@ -321,8 +436,13 @@ def memory_today(request: Request):
 
 
 @app.get("/memory/search")
-def memory_search(request: Request, q: str = "", mode: str = "keyword",
-                  category: str = "", limit: int = 20):
+def memory_search(
+    request: Request,
+    q: str = "",
+    mode: str = "keyword",
+    category: str = "",
+    limit: int = 20,
+):
     user_id = getattr(request.state, "user_id", "default")
     mems = memory_store.search(q=q, category=category, limit=limit, user_id=user_id)
     results = [{"content": m["content"], "category": m["category"]} for m in mems]
@@ -386,6 +506,7 @@ def memory_delete_category(request: Request, category: str = ""):
 # 好感度
 # ════════════════════════════════════════════════════════
 
+
 @app.get("/affinity")
 def affinity(request: Request):
     user_id = getattr(request.state, "user_id", "default")
@@ -396,18 +517,22 @@ def affinity(request: Request):
 # LiveKit 语音通话连接信息
 # ════════════════════════════════════════════════════════
 
+
 @app.get("/livekit/connect")
 def livekit_connect(room: str = "zhuyapp-voice", user_id: str = ""):
     token = livekit_token.generate_token(room, user_id)
     if token is None:
-        return {"available": False,
-                "message": "LiveKit 未配置（请在 .env 设置 LIVEKIT_URL/API_KEY/API_SECRET）"}
+        return {
+            "available": False,
+            "message": "LiveKit 未配置（请在 .env 设置 LIVEKIT_URL/API_KEY/API_SECRET）",
+        }
     return {"available": True, "livekit_url": settings.LIVEKIT_URL, "token": token}
 
 
 # ════════════════════════════════════════════════════════
 # 法律文本 & 用户数据权利（PIPL）
 # ════════════════════════════════════════════════════════
+
 
 def _read_legal(filename: str) -> str:
     path = os.path.join(LEGAL_DIR, filename)

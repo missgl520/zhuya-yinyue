@@ -59,9 +59,7 @@ def compute_signature(
 ) -> str:
     """计算请求签名（HMAC-SHA256）。客户端与服务端使用同一实现。"""
     body_hash = hashlib.sha256(body or b"").hexdigest()
-    canonical = "\n".join(
-        [method.upper(), path, timestamp, nonce, body_hash]
-    )
+    canonical = "\n".join([method.upper(), path, timestamp, nonce, body_hash])
     return hmac.new(
         api_key.encode("utf-8"),
         canonical.encode("utf-8"),

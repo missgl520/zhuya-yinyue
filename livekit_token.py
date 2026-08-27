@@ -14,8 +14,11 @@ from config import settings
 
 
 def generate_token(room: str, user_id: str = "", ttl: int = 3600):
-    if not (settings.LIVEKIT_API_KEY and settings.LIVEKIT_API_SECRET
-            and settings.LIVEKIT_URL):
+    if not (
+        settings.LIVEKIT_API_KEY
+        and settings.LIVEKIT_API_SECRET
+        and settings.LIVEKIT_URL
+    ):
         return None
 
     now = int(time.time())
