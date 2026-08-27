@@ -38,7 +38,9 @@ class _LegalPageState extends State<LegalPage> {
       final resp = await http.get(Uri.parse('$base/legal/${widget.type}'));
       if (mounted) {
         setState(() {
-          _text = resp.statusCode == 200 ? resp.body : '加载失败（${resp.statusCode}）';
+          _text = resp.statusCode == 200
+              ? resp.body
+              : '加载失败（${resp.statusCode}）';
           _loading = false;
         });
       }
@@ -65,7 +67,10 @@ class _LegalPageState extends State<LegalPage> {
           ? const Center(child: CircularProgressIndicator())
           : SafeArea(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
                 child: _buildContent(),
               ),
             ),

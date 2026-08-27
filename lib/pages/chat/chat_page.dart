@@ -49,14 +49,15 @@ class _ChatPageState extends ConsumerState<ChatPage>
   @override
   void initState() {
     super.initState();
-    _thinkingController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _thinkingController.forward(from: 0);
-        }
-      });
+    _thinkingController =
+        AnimationController(
+          duration: const Duration(milliseconds: 1200),
+          vsync: this,
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed) {
+            _thinkingController.forward(from: 0);
+          }
+        });
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       // 初始化 Live2D（仅在使用 2D 角色时；3D 人形不需要）
@@ -66,7 +67,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
       // 新架构：监听 ChatNotifier 状态
       ref.listenManual(chatNotifierProvider, (_, state) {
-        if (state.errorMessage != null || state.messages.any((m) => m.isStreaming)) {
+        if (state.errorMessage != null ||
+            state.messages.any((m) => m.isStreaming)) {
           _thinkingController.repeat(reverse: true);
         } else {
           _thinkingController.stop();
@@ -95,10 +97,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
       // 新架构：监听对话完成，触发 TTS 朗读（语音陪聊核心能力）
       ref.listenManual(chatNotifierProvider, (prev, next) {
-        final prevLast =
-            prev?.messages.isNotEmpty == true ? prev!.messages.last : null;
-        final nextLast =
-            next.messages.isNotEmpty ? next.messages.last : null;
+        final prevLast = prev?.messages.isNotEmpty == true
+            ? prev!.messages.last
+            : null;
+        final nextLast = next.messages.isNotEmpty ? next.messages.last : null;
         // 仅当新增了一条 assistant 消息时才朗读，
         // 避免 thinking/writing 等状态变化重复触发
         if (nextLast != null &&
@@ -133,7 +135,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
             .read(old_providers.miniMaxTtsServiceProvider)
             .speak(trimmed);
         if (!ok) {
-          await ref.read(old_providers.ttsServiceProvider).speak(trimmed, emotion: emotion);
+          await ref
+              .read(old_providers.ttsServiceProvider)
+              .speak(trimmed, emotion: emotion);
         }
       } else {
         await ref.read(old_providers.ttsServiceProvider).speak(trimmed);
@@ -166,12 +170,18 @@ class _ChatPageState extends ConsumerState<ChatPage>
   void _syncLive2DEmotion(String emotion) {
     final ctrl = ref.read(old_providers.live2dControllerProvider);
     switch (emotion) {
-      case 'happy':  ctrl.setEmotion('happy');
-      case 'sad':    ctrl.setEmotion('sad');
-      case 'angry':  ctrl.setEmotion('angry');
-      case 'surprised': ctrl.setEmotion('surprised');
-      case 'anxious': ctrl.setEmotion('anxious');
-      default:       ctrl.setEmotion('neutral');
+      case 'happy':
+        ctrl.setEmotion('happy');
+      case 'sad':
+        ctrl.setEmotion('sad');
+      case 'angry':
+        ctrl.setEmotion('angry');
+      case 'surprised':
+        ctrl.setEmotion('surprised');
+      case 'anxious':
+        ctrl.setEmotion('anxious');
+      default:
+        ctrl.setEmotion('neutral');
     }
   }
 
@@ -212,9 +222,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
 
   void _onImagePicked(String path) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('已选择图片：${path.split('/').last}（多模态发送待接入）'),
-      ),
+      SnackBar(content: Text('已选择图片：${path.split('/').last}（多模态发送待接入）')),
     );
   }
 
@@ -259,9 +267,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
           //    背景。消息区/输入区靠几何遮挡 + 半透明磨砂浮层叠在上面（见区块 2/3）。
           // 1. 底层柔和背景：与 Live2D 默认底色 (0xFFEDF7F0) 一致，
           //    人物在全屏内无规则游走时，露出/移过的背景无缝衔接。
-          const Positioned.fill(
-            child: ColoredBox(color: Color(0xFFEDF7F0)),
-          ),
+          const Positioned.fill(child: ColoredBox(color: Color(0xFFEDF7F0))),
 
           // 1.5 漂移的 Live2D：人物在整屏范围内无规则缓慢游走，
           //     叠加模型自带 Idle 微动 + 主动小动作，显得活泼自然。
@@ -279,7 +285,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
               // 用户点消息区空白处收起键盘（不再有外框收焦点时）
               behavior: HitTestBehavior.opaque,
               onTap: () => _focusNode.unfocus(),
-              child: (messages.isEmpty &&
+              child:
+                  (messages.isEmpty &&
                       !(status == ConversationStatus.writing &&
                           (chatState.currentText?.isNotEmpty ?? false)))
                   ? _buildEmptyOrErrorPlaceholder(chatState, isDark)
@@ -304,9 +311,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
                     final modelReady = kUseVrmAvatar
                         ? true
                         : (state.isAttached &&
-                            !state.isLoadingModel &&
-                            state.loadedModel != null &&
-                            state.lastError == null);
+                              !state.isLoadingModel &&
+                              state.loadedModel != null &&
+                              state.lastError == null);
                     return _buildInputArea(
                       status,
                       chatState.errorMessage,
@@ -437,16 +444,16 @@ class _ChatPageState extends ConsumerState<ChatPage>
     }
 
     final label = switch (status) {
-      ConversationStatus.idle     => '',
+      ConversationStatus.idle => '',
       ConversationStatus.thinking => '在想',
       ConversationStatus.writing => '在写',
       ConversationStatus.speaking => '在说',
     };
 
     final color = switch (status) {
-      ConversationStatus.idle     => AppTheme.bambooDeep,
+      ConversationStatus.idle => AppTheme.bambooDeep,
       ConversationStatus.thinking => const Color(0xFFB8A07A),
-      ConversationStatus.writing  => AppTheme.bambooDeep,
+      ConversationStatus.writing => AppTheme.bambooDeep,
       ConversationStatus.speaking => AppTheme.bambooDeep,
     };
 
@@ -478,8 +485,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
       decoration: BoxDecoration(
-        color: (isDark ? Colors.black : Colors.white)
-            .withValues(alpha: 0.55),
+        color: (isDark ? Colors.black : Colors.white).withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: AppTheme.bamboo.withValues(alpha: 0.35),
@@ -587,7 +593,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final messages = chatState.messages;
     // 打字中且已有输出片段：在末尾追加一条"正在输入"的临时条目，
     // 让 SSE 流式文字实时可见（否则只有 done 后整段突然出现）。
-    final typing = status == ConversationStatus.writing &&
+    final typing =
+        status == ConversationStatus.writing &&
         (chatState.currentText?.isNotEmpty ?? false);
     return ListView.builder(
       controller: _scrollController,
@@ -637,10 +644,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
       decoration: BoxDecoration(
         color: Colors.transparent,
         border: Border(
-          top: BorderSide(
-            color: Theme.of(context).dividerColor,
-            width: 0.5,
-          ),
+          top: BorderSide(color: Theme.of(context).dividerColor, width: 0.5),
         ),
       ),
       padding: EdgeInsets.only(bottom: keyboardHeight),
@@ -663,7 +667,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
               // 思考中提示
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
-                child: isWorking ? _buildThinkingIndicator() : const SizedBox.shrink(),
+                child: isWorking
+                    ? _buildThinkingIndicator()
+                    : const SizedBox.shrink(),
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -684,21 +690,27 @@ class _ChatPageState extends ConsumerState<ChatPage>
                       decoration: InputDecoration(
                         hintText: '写给竹笌…',
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusXl,
+                          ),
                           borderSide: BorderSide(
                             color: Theme.of(context).dividerColor,
                             width: 0.5,
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusXl,
+                          ),
                           borderSide: BorderSide(
                             color: Theme.of(context).dividerColor,
                             width: 0.5,
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                          borderRadius: BorderRadius.circular(
+                            AppTheme.radiusXl,
+                          ),
                           borderSide: const BorderSide(
                             color: AppTheme.bambooDeep,
                             width: 1,
@@ -804,26 +816,24 @@ class _TopIcon extends StatelessWidget {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 class _LetterEntry extends StatelessWidget {
   final entities.Message message;
+
   /// 这条消息距离列表底部多远（1 = 最新，n = 最旧）。
   /// 用于「互动三条后渐隐」：最近 3 条完全不透明，更早的逐条变淡。
   final int distanceFromBottom;
 
-  const _LetterEntry({
-    required this.message,
-    required this.distanceFromBottom,
-  });
+  const _LetterEntry({required this.message, required this.distanceFromBottom});
 
   /// 打字中临时条目：展示 SSE 正在流式输出的文字 + 打字光标。
   _LetterEntry.typing(String text)
-      : message = entities.Message(
-          id: '__typing__',
-          role: 'assistant',
-          content: text,
-          timestamp: DateTime.now(),
-          isStreaming: true,
-        ),
-        // 正在输入的条目视为最新，保持完全不透明。
-        distanceFromBottom = 1;
+    : message = entities.Message(
+        id: '__typing__',
+        role: 'assistant',
+        content: text,
+        timestamp: DateTime.now(),
+        isStreaming: true,
+      ),
+      // 正在输入的条目视为最新，保持完全不透明。
+      distanceFromBottom = 1;
 
   bool get isUser => message.role == 'user';
 
@@ -839,8 +849,10 @@ class _LetterEntry extends StatelessWidget {
       );
     }
     const double step = 0.25;
-    final double alpha =
-        (1.0 - step * (distanceFromBottom - 3)).clamp(0.18, 1.0);
+    final double alpha = (1.0 - step * (distanceFromBottom - 3)).clamp(
+      0.18,
+      1.0,
+    );
     // 第4条 0.75 / 第5条 0.5 / 第6条 0.25 / 更旧 clamp 在 0.18（保证可读）。
     return AnimatedOpacity(
       opacity: alpha,
@@ -855,8 +867,9 @@ class _LetterEntry extends StatelessWidget {
     final Widget realContent = Padding(
       padding: const EdgeInsets.only(bottom: 28),
       child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment: isUser
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -884,7 +897,10 @@ class _LetterEntry extends StatelessWidget {
               if (!isUser) ...[
                 const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: AppTheme.bambooDeep.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(4),
@@ -931,8 +947,8 @@ class _LetterEntry extends StatelessWidget {
             child: Text(
               message.content,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: isUser ? Colors.white : null,
-                  ),
+                color: isUser ? Colors.white : null,
+              ),
             ),
           ),
           if (message.isStreaming)
@@ -1039,7 +1055,7 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
   Timer? _timer;
   Animation<Offset>? _anim;
   Animation<Offset>? _prevAnim;
-  double _bobY = 0.0;  // 步态颠簸的当前 Y 位移（向上为正）
+  double _bobY = 0.0; // 步态颠簸的当前 Y 位移（向上为正）
 
   // 步态垂直颠簸：模拟"踏步走"的上下颠，让漂移看起来像走路而不是滑过
   // 0.85 Hz 步态 × 2 = 1.7 Hz 颠簸（每步一次颠），振幅 22px（2400 高屏上明显可见）
@@ -1117,9 +1133,10 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
     );
 
     _prevAnim?.removeListener(_onAnimTick);
-    _anim = Tween<Offset>(begin: _offset, end: target).animate(
-      CurvedAnimation(parent: _drift, curve: Curves.easeInOutSine),
-    );
+    _anim = Tween<Offset>(
+      begin: _offset,
+      end: target,
+    ).animate(CurvedAnimation(parent: _drift, curve: Curves.easeInOutSine));
     _anim!.addListener(_onAnimTick);
     _prevAnim = _anim;
 
@@ -1169,16 +1186,16 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
       left: _offset.dx,
       // 步态颠簸：仅 2D 需要人工上下颠；3D 走路动画自带上下颠，_bobY 置 0。
       // 3D 额外叠 ±0.5px@~1.9Hz keep-alive 振荡，让 platform view 持续重绘避免 WebGL 冻结。
-      top: _offset.dy - (kUseVrmAvatar
-          ? (sin(_keepAlivePhase * 12.0) * 0.5)
-          : _bobY),
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width,
-          // 3D 区域限制为屏高 78%：Hybrid Composition 下 SurfaceView 会盖住
-          // 底部的 Flutter 聊天输入栏，缩 3D 高度留出空间给输入框不被压。
-          height: MediaQuery.of(context).size.height * 0.78,
-          child: child,
-        ),
+      top:
+          _offset.dy -
+          (kUseVrmAvatar ? (sin(_keepAlivePhase * 12.0) * 0.5) : _bobY),
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width,
+        // 3D 区域限制为屏高 78%：Hybrid Composition 下 SurfaceView 会盖住
+        // 底部的 Flutter 聊天输入栏，缩 3D 高度留出空间给输入框不被压。
+        height: MediaQuery.of(context).size.height * 0.78,
+        child: child,
+      ),
     );
   }
 }

@@ -23,8 +23,10 @@ class ClientAuth {
   static final ClientAuth instance = ClientAuth._();
 
   /// 必须与后端 ZHUYU_API_KEY 一致；生产环境用 --dart-define 覆盖。
-  static const String apiKey =
-      String.fromEnvironment('ZHUYU_API_KEY', defaultValue: 'zhuyu-dev-key-change-me');
+  static const String apiKey = String.fromEnvironment(
+    'ZHUYU_API_KEY',
+    defaultValue: 'zhuyu-dev-key-change-me',
+  );
 
   String? _cachedUserId;
 
@@ -52,9 +54,10 @@ class ClientAuth {
     final nonce = const Uuid().v4();
     final bodyHash = sha256.convert(bodyBytes).toString();
     final canonical = '$method\n$path\n$ts\n$nonce\n$bodyHash';
-    final sig = Hmac(sha256, utf8.encode(apiKey))
-        .convert(utf8.encode(canonical))
-        .toString();
+    final sig = Hmac(
+      sha256,
+      utf8.encode(apiKey),
+    ).convert(utf8.encode(canonical)).toString();
     return {
       'X-Api-Key': apiKey,
       'X-Timestamp': ts,
@@ -68,7 +71,10 @@ class ClientAuth {
 /// Dio 拦截器：自动为每个请求附加签名头与 user_id。
 class SigningInterceptor extends Interceptor {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final userId = await ClientAuth.instance.userId;
     final method = options.method.toUpperCase();
     final path = options.path; // 不含 query，与后端 request.url.path 对齐

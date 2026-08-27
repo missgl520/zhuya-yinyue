@@ -45,8 +45,12 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
     final affinity = ref.watch(affinityProvider);
     final currentEmotion = ref.watch(currentEmotionProvider);
 
-    final rawPersona = Hive.box('settings').get('persona', defaultValue: '少年感 · 阳光 · 直接') as String;
-    final personaSubtitle = rawPersona.length > 16 ? '${rawPersona.substring(0, 16)}…' : rawPersona;
+    final rawPersona =
+        Hive.box('settings').get('persona', defaultValue: '少年感 · 阳光 · 直接')
+            as String;
+    final personaSubtitle = rawPersona.length > 16
+        ? '${rawPersona.substring(0, 16)}…'
+        : rawPersona;
 
     return Container(
       decoration: BoxDecoration(
@@ -135,7 +139,9 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
   }
 
   void _showWakeWordEditor(BuildContext context) {
-    final controller = TextEditingController(text: BackendConfig.instance.wakeWord);
+    final controller = TextEditingController(
+      text: BackendConfig.instance.wakeWord,
+    );
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -188,7 +194,11 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
     );
   }
 
-  void _saveWakeWord(BuildContext dialogContext, String word, BuildContext scaffoldContext) {
+  void _saveWakeWord(
+    BuildContext dialogContext,
+    String word,
+    BuildContext scaffoldContext,
+  ) {
     final trimmed = word.trim();
     if (trimmed.isEmpty) return;
     // 存本地
@@ -295,14 +305,20 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
               title: const Text('查看对话摘要'),
               onTap: () async {
                 Navigator.pop(context);
-                final summaries = await ref.read(backendServiceProvider).getSummaries();
+                final summaries = await ref
+                    .read(backendServiceProvider)
+                    .getSummaries();
                 if (context.mounted) {
                   _showSummaries(context, summaries);
                 }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.delete_outline, size: 20, color: Colors.red),
+              leading: const Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: Colors.red,
+              ),
               title: const Text('清空对话记忆', style: TextStyle(color: Colors.red)),
               onTap: () async {
                 Navigator.pop(context);
@@ -321,7 +337,10 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
     );
   }
 
-  void _showSummaries(BuildContext context, List<Map<String, dynamic>> summaries) {
+  void _showSummaries(
+    BuildContext context,
+    List<Map<String, dynamic>> summaries,
+  ) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -342,11 +361,18 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              s['created_at']?.toString().substring(0, 10) ?? '',
-                              style: const TextStyle(fontSize: 11, color: Colors.grey),
+                              s['created_at']?.toString().substring(0, 10) ??
+                                  '',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
                             ),
                             const SizedBox(height: 4),
-                            Text(s['summary'] ?? '', style: const TextStyle(fontSize: 13)),
+                            Text(
+                              s['summary'] ?? '',
+                              style: const TextStyle(fontSize: 13),
+                            ),
                           ],
                         ),
                       ),
@@ -369,9 +395,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('确认清空记忆？'),
-        content: const Text(
-          '清空后竹笌会忘记所有对话历史。\n此操作不可恢复。',
-        ),
+        content: const Text('清空后竹笌会忘记所有对话历史。\n此操作不可恢复。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -382,9 +406,9 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
               Navigator.pop(context);
               final ok = await ref.read(backendServiceProvider).clearMemory();
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(ok ? '记忆已清空' : '清空失败')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(ok ? '记忆已清空' : '清空失败')));
               }
             },
             child: const Text('确认清空', style: TextStyle(color: Colors.red)),
@@ -451,18 +475,27 @@ class _RelationshipBanner extends StatelessWidget {
                   children: [
                     const Text(
                       '竹笌',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppTheme.bamboo.withValues(alpha: 0.2),
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
                         affinity.level,
-                        style: const TextStyle(fontSize: 12, color: AppTheme.bamboo),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.bamboo,
+                        ),
                       ),
                     ),
                   ],
@@ -478,12 +511,17 @@ class _RelationshipBanner extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Text(emotionEmoji(currentEmotion),
-                          style: const TextStyle(fontSize: 13)),
+                      Text(
+                        emotionEmoji(currentEmotion),
+                        style: const TextStyle(fontSize: 13),
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '现在${emotionLabel(currentEmotion)}',
-                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -564,7 +602,11 @@ class _AffinityPanel extends StatelessWidget {
             padding: EdgeInsets.only(bottom: 8),
             child: Text(
               '关系状态',
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: Colors.grey,
+              ),
             ),
           ),
           _AffinityBar(label: '信任', value: affinity.trust, max: 100),
@@ -583,7 +625,11 @@ class _AffinityBar extends StatelessWidget {
   final double value;
   final double max;
 
-  const _AffinityBar({required this.label, required this.value, required this.max});
+  const _AffinityBar({
+    required this.label,
+    required this.value,
+    required this.max,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -592,7 +638,10 @@ class _AffinityBar extends StatelessWidget {
       children: [
         SizedBox(
           width: 32,
-          child: Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12, color: Colors.grey),
+          ),
         ),
         Expanded(
           child: Container(
@@ -682,14 +731,20 @@ class _MenuTile extends StatelessWidget {
                       if (badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: AppTheme.warmYellow.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(
                             badge!,
-                            style: const TextStyle(fontSize: 11, color: Colors.orange),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Colors.orange,
+                            ),
                           ),
                         ),
                       ],
@@ -711,7 +766,6 @@ class _MenuTile extends StatelessWidget {
     );
   }
 }
-
 
 /// 分组标题（角色 / 互动）
 class _SectionLabel extends StatelessWidget {

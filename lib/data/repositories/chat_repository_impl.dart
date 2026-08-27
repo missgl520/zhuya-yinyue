@@ -24,7 +24,7 @@ import '../../core/sync/sync_engine.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
   ChatRepositoryImpl({ChatService? service})
-      : _service = service ?? ChatService();
+    : _service = service ?? ChatService();
 
   final ChatService _service;
   final ChatLocalDataSource _local = ChatLocalDataSource.instance;
@@ -60,10 +60,9 @@ class ChatRepositoryImpl implements ChatRepository {
         controller.add(ChatEvent.emotion(emotion));
       },
       onAffinity: (affinity) {
-        controller.add(ChatEvent(
-          type: ChatEventType.affinity,
-          affinity: affinity,
-        ));
+        controller.add(
+          ChatEvent(type: ChatEventType.affinity, affinity: affinity),
+        );
       },
       onDone: () {
         // 2) 完整 AI 回复落本地（与用户消息共享 client_msg_id）

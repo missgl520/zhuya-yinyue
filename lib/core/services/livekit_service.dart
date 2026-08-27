@@ -25,12 +25,7 @@ import '../auth/client_auth.dart';
 import '../config.dart';
 
 /// 连接状态
-enum LiveKitState {
-  idle,
-  connecting,
-  connected,
-  error,
-}
+enum LiveKitState { idle, connecting, connected, error }
 
 /// LiveKit 实时语音服务
 class LiveKitService {
@@ -49,10 +44,7 @@ class LiveKitService {
   // ── 连接 ─────────────────────────────────────────────
 
   /// 从后端获取 token 并连接 LiveKit 房间
-  Future<void> connect({
-    required String room,
-    String userId = '',
-  }) async {
+  Future<void> connect({required String room, String userId = ''}) async {
     if (_state == LiveKitState.connecting || _state == LiveKitState.connected) {
       return;
     }
@@ -69,10 +61,7 @@ class LiveKitService {
 
       // 2. 创建 Room 实例
       _room = Room(
-        roomOptions: RoomOptions(
-          adaptiveStream: true,
-          dynacast: true,
-        ),
+        roomOptions: RoomOptions(adaptiveStream: true, dynacast: true),
       );
 
       // 3. 创建事件监听器（示例见 https://docs.livekit.io/client/events/#events）

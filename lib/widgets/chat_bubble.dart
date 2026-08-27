@@ -17,11 +17,7 @@ class ChatBubble extends StatelessWidget {
   final Message message;
   final VoidCallback? onLongPress;
 
-  const ChatBubble({
-    super.key,
-    required this.message,
-    this.onLongPress,
-  });
+  const ChatBubble({super.key, required this.message, this.onLongPress});
 
   bool get isUser => message.role == 'user';
 
@@ -30,7 +26,9 @@ class ChatBubble extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           // AI 头像（左侧）
@@ -44,13 +42,16 @@ class ChatBubble extends StatelessWidget {
             child: GestureDetector(
               onLongPress: onLongPress,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isUser
                       ? AppTheme.bamboo
                       : Theme.of(context).brightness == Brightness.dark
-                          ? const Color(0xFF2A2A2A)
-                          : const Color(0xFFE8E8E8),
+                      ? const Color(0xFF2A2A2A)
+                      : const Color(0xFFE8E8E8),
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -60,7 +61,13 @@ class ChatBubble extends StatelessWidget {
                   ),
                   boxShadow: isUser
                       ? null
-                      : [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 2))],
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -71,7 +78,11 @@ class ChatBubble extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           '竹笌',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.bamboo.withValues(alpha: 0.8)),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.bamboo.withValues(alpha: 0.8),
+                          ),
                         ),
                       ),
                     // 消息内容
@@ -79,7 +90,11 @@ class ChatBubble extends StatelessWidget {
                       message.content,
                       style: TextStyle(
                         fontSize: 15,
-                        color: isUser ? Colors.white : (Theme.of(context).brightness == Brightness.dark ? Colors.white : Colors.black87),
+                        color: isUser
+                            ? Colors.white
+                            : (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black87),
                         height: 1.4,
                       ),
                     ),
@@ -89,7 +104,13 @@ class ChatBubble extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
-                          children: [_buildTypingDot(0), const SizedBox(width: 3), _buildTypingDot(1), const SizedBox(width: 3), _buildTypingDot(2)],
+                          children: [
+                            _buildTypingDot(0),
+                            const SizedBox(width: 3),
+                            _buildTypingDot(1),
+                            const SizedBox(width: 3),
+                            _buildTypingDot(2),
+                          ],
                         ),
                       ),
                   ],
@@ -99,10 +120,7 @@ class ChatBubble extends StatelessWidget {
           ),
 
           // 用户头像（右侧）
-          if (isUser) ...[
-            const SizedBox(width: 8),
-            _buildAvatar(isUser: true),
-          ],
+          if (isUser) ...[const SizedBox(width: 8), _buildAvatar(isUser: true)],
         ],
       ),
     );
@@ -116,7 +134,11 @@ class ChatBubble extends StatelessWidget {
         color: isUser ? const Color(0xFF81C784) : AppTheme.bamboo,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(isUser ? Icons.person : Icons.eco, size: 18, color: Colors.white),
+      child: Icon(
+        isUser ? Icons.person : Icons.eco,
+        size: 18,
+        color: Colors.white,
+      ),
     );
   }
 

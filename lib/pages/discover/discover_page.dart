@@ -164,7 +164,9 @@ class _BambooStalk extends StatelessWidget {
     return SizedBox(
       width: width,
       height: max(80.0, height),
-      child: CustomPaint(painter: _BambooPainter(color: color, ring: darker)),
+      child: CustomPaint(
+        painter: _BambooPainter(color: color, ring: darker),
+      ),
     );
   }
 }
@@ -185,7 +187,10 @@ class _BambooPainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [color.withValues(alpha: color.a * 1.1), color],
+        colors: [
+          color.withValues(alpha: color.a * 1.1),
+          color,
+        ],
       ).createShader(Rect.fromLTWH(0, 0, w, h));
     final rrect = RRect.fromRectAndCorners(
       Rect.fromLTWH(0, 0, w, h),

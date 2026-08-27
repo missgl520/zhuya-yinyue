@@ -66,16 +66,15 @@ class LocalEncryption {
     Uint8List data,
     bool forEncrypt,
   ) {
-    final cipher = PaddedBlockCipherImpl(
-      PKCS7Padding(),
-      CBCBlockCipher(AESEngine()),
-    )..init(
-        forEncrypt,
-        PaddedBlockCipherParameters(
-          ParametersWithIV(KeyParameter(key), iv),
-          null,
-        ),
-      );
+    final cipher =
+        PaddedBlockCipherImpl(PKCS7Padding(), CBCBlockCipher(AESEngine()))
+          ..init(
+            forEncrypt,
+            PaddedBlockCipherParameters(
+              ParametersWithIV(KeyParameter(key), iv),
+              null,
+            ),
+          );
     return cipher.process(data);
   }
 
@@ -86,12 +85,7 @@ class LocalEncryption {
     final iv = Uint8List.fromList(
       List<int>.generate(16, (_) => _random.nextInt(256)),
     );
-    final ct = _aes(
-      key,
-      iv,
-      Uint8List.fromList(utf8.encode(plaintext)),
-      true,
-    );
+    final ct = _aes(key, iv, Uint8List.fromList(utf8.encode(plaintext)), true);
     final combined = Uint8List(16 + ct.length);
     combined.setRange(0, 16, iv);
     combined.setRange(16, combined.length, ct);

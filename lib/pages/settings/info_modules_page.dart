@@ -13,7 +13,8 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 
 class InfoModulesPage extends StatelessWidget {
-  final String type; // 'pi-collection' | 'third-party-sharing' | 'version-intro'
+  final String
+  type; // 'pi-collection' | 'third-party-sharing' | 'version-intro'
 
   const InfoModulesPage({super.key, required this.type});
 
@@ -154,11 +155,7 @@ class InfoModulesPage extends StatelessWidget {
       _card(
         title: 'MiniMax（语音合成服务）',
         subtitle: '用于把文字回复合成为语音播放',
-        rows: const [
-          ('共享内容', 'AI 回复文本'),
-          ('用途', '文字转语音（TTS）'),
-          ('数据出境', '国内'),
-        ],
+        rows: const [('共享内容', 'AI 回复文本'), ('用途', '文字转语音（TTS）'), ('数据出境', '国内')],
       ),
       _card(
         title: '腾讯云 CloudBase（后端托管）',
@@ -218,16 +215,29 @@ class InfoModulesPage extends StatelessWidget {
                     color: AppTheme.bamboo.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(13),
                   ),
-                  child: const Icon(Icons.eco, color: AppTheme.bamboo, size: 30),
+                  child: const Icon(
+                    Icons.eco,
+                    color: AppTheme.bamboo,
+                    size: 30,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('竹笌', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                      Text(
+                        '竹笌',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       SizedBox(height: 2),
-                      Text('当前版本 1.0.0', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                      Text(
+                        '当前版本 1.0.0',
+                        style: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
                     ],
                   ),
                 ),
@@ -263,36 +273,31 @@ class InfoModulesPage extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 12),
-      _intro(
-        '本页信息随功能迭代更新。如对某些能力有疑问，可在「隐私政策」中查看完整条款。',
-      ),
+      _intro('本页信息随功能迭代更新。如对某些能力有疑问，可在「隐私政策」中查看完整条款。'),
     ];
   }
 
   // ── 通用构件 ──
   Widget _intro(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 14, height: 1.7, color: Colors.grey),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 14, height: 1.7, color: Colors.grey),
+    ),
+  );
 
   Widget _sectionTitle(String text) => Padding(
-        padding: const EdgeInsets.only(top: 6, bottom: 10),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-      );
+    padding: const EdgeInsets.only(top: 6, bottom: 10),
+    child: Text(
+      text,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+    ),
+  );
 
   Widget _bullet(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 14, height: 1.6),
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Text(text, style: const TextStyle(fontSize: 14, height: 1.6)),
+  );
 
   Widget _card({
     required String title,
@@ -305,7 +310,10 @@ class InfoModulesPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.2), width: 0.5),
+        border: Border.all(
+          color: Colors.grey.withValues(alpha: 0.2),
+          width: 0.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -317,10 +325,16 @@ class InfoModulesPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          Text(
+            title,
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+          ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Text(
+              subtitle,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ],
           const SizedBox(height: 10),
           ...rows.map((r) => _kvRow(r.$1, r.$2)),
@@ -330,21 +344,21 @@ class InfoModulesPage extends StatelessWidget {
   }
 
   Widget _kvRow(String k, String v) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 76,
-              child: Text(k, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-            ),
-            Expanded(
-              child: Text(
-                v,
-                style: const TextStyle(fontSize: 13, height: 1.5),
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 76,
+          child: Text(
+            k,
+            style: const TextStyle(fontSize: 13, color: Colors.grey),
+          ),
         ),
-      );
+        Expanded(
+          child: Text(v, style: const TextStyle(fontSize: 13, height: 1.5)),
+        ),
+      ],
+    ),
+  );
 }

@@ -93,21 +93,21 @@ class Message {
 
   /// 序列化成 JSON（Hive 存储用）
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'role': role,
-        'content': content,
-        'timestamp': timestamp.millisecondsSinceEpoch, // DateTime → int
-        'isStreaming': isStreaming,
-      };
+    'id': id,
+    'role': role,
+    'content': content,
+    'timestamp': timestamp.millisecondsSinceEpoch, // DateTime → int
+    'isStreaming': isStreaming,
+  };
 
   /// 克隆（Immutable 模式）
   Message copyWith({String? content, bool? isStreaming}) => Message(
-        id: id,
-        role: role,
-        content: content ?? this.content,
-        timestamp: timestamp,
-        isStreaming: isStreaming ?? this.isStreaming,
-      );
+    id: id,
+    role: role,
+    content: content ?? this.content,
+    timestamp: timestamp,
+    isStreaming: isStreaming ?? this.isStreaming,
+  );
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -116,12 +116,12 @@ class Message {
 
 /// 好感度数据（Hive 不存，由后端管理，这里是 UI 状态用）
 class AffinityData {
-  final double trust;         // 信任值（0-100）
-  final double intimacy;      // 亲密度（0-100）
-  final double familiarity;   // 熟悉度（0-100）
+  final double trust; // 信任值（0-100）
+  final double intimacy; // 亲密度（0-100）
+  final double familiarity; // 熟悉度（0-100）
   final int totalInteractions; // 累计对话轮数
-  final int streakDays;       // 连续签到天数
-  final String level;         // 关系等级文字
+  final int streakDays; // 连续签到天数
+  final String level; // 关系等级文字
 
   const AffinityData({
     this.trust = 30,
@@ -143,15 +143,14 @@ class AffinityData {
     int? totalInteractions,
     int? streakDays,
     String? level,
-  }) =>
-      AffinityData(
-        trust: trust ?? this.trust,
-        intimacy: intimacy ?? this.intimacy,
-        familiarity: familiarity ?? this.familiarity,
-        totalInteractions: totalInteractions ?? this.totalInteractions,
-        streakDays: streakDays ?? this.streakDays,
-        level: level ?? this.level,
-      );
+  }) => AffinityData(
+    trust: trust ?? this.trust,
+    intimacy: intimacy ?? this.intimacy,
+    familiarity: familiarity ?? this.familiarity,
+    totalInteractions: totalInteractions ?? this.totalInteractions,
+    streakDays: streakDays ?? this.streakDays,
+    level: level ?? this.level,
+  );
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -160,9 +159,9 @@ class AffinityData {
 
 /// 情绪识别结果（后端返回）
 class EmotionResult {
-  final String emotion;      // 情绪标签：happy / sad / angry / neutral 等
-  final double confidence;   // 置信度（0.0 ~ 1.0）
-  final DateTime timestamp;  // 识别时间
+  final String emotion; // 情绪标签：happy / sad / angry / neutral 等
+  final double confidence; // 置信度（0.0 ~ 1.0）
+  final DateTime timestamp; // 识别时间
 
   const EmotionResult({
     required this.emotion,
@@ -262,24 +261,25 @@ final agnesUseCNProvider = StateProvider<bool>((ref) {
 
 /// 对话消息列表
 /// 启动时从 Hive 恢复历史，运行时追加新消息
-final messagesProvider =
-    StateNotifierProvider<MessagesNotifier, List<Message>>((ref) {
-  final box = Hive.box('messages');
-  final messages = <Message>[];
+final messagesProvider = StateNotifierProvider<MessagesNotifier, List<Message>>(
+  (ref) {
+    final box = Hive.box('messages');
+    final messages = <Message>[];
 
-  // 启动时：从 Hive 逐条读取并按时间排序
-  for (final key in box.keys) {
-    try {
-      final data = Map<String, dynamic>.from(box.get(key));
-      messages.add(Message.fromJson(data));
-    } catch (_) {
-      // 损坏的数据跳过
+    // 启动时：从 Hive 逐条读取并按时间排序
+    for (final key in box.keys) {
+      try {
+        final data = Map<String, dynamic>.from(box.get(key));
+        messages.add(Message.fromJson(data));
+      } catch (_) {
+        // 损坏的数据跳过
+      }
     }
-  }
 
-  messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-  return MessagesNotifier(messages);
-});
+    messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    return MessagesNotifier(messages);
+  },
+);
 
 class MessagesNotifier extends StateNotifier<List<Message>> {
   final Box _box;
@@ -295,7 +295,8 @@ class MessagesNotifier extends StateNotifier<List<Message>> {
   /// 更新消息内容（用于流式输出时逐字追加）
   void updateMessage(String id, String content, {bool? isStreaming}) {
     state = state.map((m) {
-      if (m.id == id) return m.copyWith(content: content, isStreaming: isStreaming);
+      if (m.id == id)
+        return m.copyWith(content: content, isStreaming: isStreaming);
       return m;
     }).toList();
     // Hive 里也更新
@@ -322,9 +323,9 @@ class MessagesNotifier extends StateNotifier<List<Message>> {
 
 /// 竹笌对话状态
 enum ZhuaStatus {
-  idle,     // 空闲，等待用户输入
+  idle, // 空闲，等待用户输入
   thinking, // 思考中（后端推理中）
-  writing,  // 打字中（流式输出中）
+  writing, // 打字中（流式输出中）
   speaking, // 播报中（TTS 播放中）
 }
 
@@ -399,14 +400,13 @@ final live2dControllerProvider = Provider<ZhuaLive2DController>((ref) {
 
 /// 当前情绪（驱动 Live2D 表情切换）
 /// 新代码请用 presentation/providers/chat_provider.dart 里的 currentEmotionProvider
-final currentEmotionProvider =
-    StateProvider<EmotionResult?>((ref) => null);
+final currentEmotionProvider = StateProvider<EmotionResult?>((ref) => null);
 
 /// 情绪历史（最近 50 条，用于情绪曲线展示）
 final emotionHistoryProvider =
     StateNotifierProvider<EmotionHistoryNotifier, List<EmotionResult>>((ref) {
-  return EmotionHistoryNotifier();
-});
+      return EmotionHistoryNotifier();
+    });
 
 class EmotionHistoryNotifier extends StateNotifier<List<EmotionResult>> {
   EmotionHistoryNotifier() : super([]);
@@ -425,8 +425,9 @@ class EmotionHistoryNotifier extends StateNotifier<List<EmotionResult>> {
 
 /// 好感度状态（由 AffinityNotifier 管理）
 /// 新代码请用 presentation/providers/chat_provider.dart 里的 affinityProvider
-final affinityProvider =
-    StateNotifierProvider<AffinityNotifier, AffinityData>((ref) {
+final affinityProvider = StateNotifierProvider<AffinityNotifier, AffinityData>((
+  ref,
+) {
   return AffinityNotifier();
 });
 

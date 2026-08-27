@@ -13,11 +13,13 @@ import '../../core/config.dart';
 import '../../core/auth/client_auth.dart';
 import '../../core/theme/app_theme.dart';
 
-final _memoryDio = Dio(BaseOptions(
-  baseUrl: BackendConfig.instance.baseUrl,
-  connectTimeout: const Duration(seconds: 10),
-  receiveTimeout: const Duration(seconds: 10),
-))..interceptors.add(SigningInterceptor());
+final _memoryDio = Dio(
+  BaseOptions(
+    baseUrl: BackendConfig.instance.baseUrl,
+    connectTimeout: const Duration(seconds: 10),
+    receiveTimeout: const Duration(seconds: 10),
+  ),
+)..interceptors.add(SigningInterceptor());
 
 class MemoryHistoryPage extends ConsumerStatefulWidget {
   const MemoryHistoryPage({super.key});
@@ -48,7 +50,10 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
   Future<void> _loadTodayMemories() async {
     // 跟随设置页修改的后端地址（否则换地址后记忆页仍打旧地址）
     _memoryDio.options.baseUrl = BackendConfig.instance.baseUrl;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final resp = await _memoryDio.get('/memory/today');
       final data = resp.data as Map<String, dynamic>;
@@ -58,7 +63,10 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
         _loading = false;
       });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -69,12 +77,16 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
       _loadTodayMemories();
       return;
     }
-    setState(() { _loading = true; _error = null; _isSearchMode = true; });
+    setState(() {
+      _loading = true;
+      _error = null;
+      _isSearchMode = true;
+    });
     try {
-      final resp = await _memoryDio.get('/memory/search', queryParameters: {
-        'q': query,
-        'limit': 20,
-      });
+      final resp = await _memoryDio.get(
+        '/memory/search',
+        queryParameters: {'q': query, 'limit': 20},
+      );
       final data = resp.data as Map<String, dynamic>;
       final List memories = data['memories'] ?? [];
       setState(() {
@@ -82,13 +94,18 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
         _loading = false;
       });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      setState(() {
+        _error = e.toString();
+        _loading = false;
+      });
     }
   }
 
   void _exitSearchMode() {
     _searchController.clear();
-    setState(() { _isSearchMode = false; });
+    setState(() {
+      _isSearchMode = false;
+    });
     _loadTodayMemories();
   }
 
@@ -126,7 +143,9 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
           else
             IconButton(
               icon: const Icon(Icons.search),
-              onPressed: () => setState(() { _isSearchMode = true; }),
+              onPressed: () => setState(() {
+                _isSearchMode = true;
+              }),
             ),
         ],
       ),
@@ -166,12 +185,20 @@ class _MemoryHistoryPageState extends ConsumerState<MemoryHistoryPage> {
                 color: AppTheme.bamboo.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.eco, size: 48, color: AppTheme.bambooDeep),
+              child: const Icon(
+                Icons.eco,
+                size: 48,
+                color: AppTheme.bambooDeep,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
               _isSearchMode ? '没有找到相关记忆' : '今天还没有对话记忆',
-              style: TextStyle(color: Colors.grey[700], fontSize: 16, fontWeight: FontWeight.w500),
+              style: TextStyle(
+                color: Colors.grey[700],
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -262,7 +289,11 @@ class _MemoryCard extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             _stripPrefix(item.content),
-            style: const TextStyle(fontSize: 15, height: 1.5, color: Color(0xFF333333)),
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.5,
+              color: Color(0xFF333333),
+            ),
           ),
           if (item.tags.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -271,12 +302,18 @@ class _MemoryCard extends StatelessWidget {
               runSpacing: 4,
               children: item.tags.take(4).map((tag) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: roleColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Text(tag, style: TextStyle(color: roleColor, fontSize: 11)),
+                  child: Text(
+                    tag,
+                    style: TextStyle(color: roleColor, fontSize: 11),
+                  ),
                 );
               }).toList(),
             ),
@@ -307,9 +344,9 @@ class MemoryItem {
       id: json['id'] ?? 0,
       content: json['content'] ?? '',
       category: json['category'] ?? 'chat_memory',
-      tags: (json['tags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ?? [],
+      tags:
+          (json['tags'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+          [],
       createdAt: json['created_at'] ?? '',
     );
   }

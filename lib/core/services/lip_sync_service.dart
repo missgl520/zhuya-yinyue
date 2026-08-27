@@ -103,20 +103,23 @@ class LipSyncService {
     if (volume < _silenceThreshold) {
       // 静默时：正弦波驱动，小幅自然颤动
       _phase += 2 * math.pi * _frequency / 60; // 每帧相位增量
-      _mouthOpen = _minMouthOpen + (_amplitude * math.sin(_phase)).clamp(0, _amplitude);
+      _mouthOpen =
+          _minMouthOpen + (_amplitude * math.sin(_phase)).clamp(0, _amplitude);
       return _mouthOpen;
     }
 
     // 有声音时：音量直接驱动 + 正弦波叠加
     // volume 范围 [_silenceThreshold, 1.0]，映射到 [_minMouthOpen, _maxMouthOpen]
-    final scaled = _minMouthOpen +
+    final scaled =
+        _minMouthOpen +
         (volume - _silenceThreshold) /
             (1.0 - _silenceThreshold) *
             (_maxMouthOpen - _minMouthOpen);
 
     // 正弦波叠加：说话时嘴型有自然颤动
     _phase += 2 * math.pi * _frequency / 60;
-    _mouthOpen = scaled + (_amplitude * math.sin(_phase)).clamp(-_amplitude, _amplitude);
+    _mouthOpen =
+        scaled + (_amplitude * math.sin(_phase)).clamp(-_amplitude, _amplitude);
     return _mouthOpen.clamp(_minMouthOpen, _maxMouthOpen);
   }
 
@@ -124,7 +127,8 @@ class LipSyncService {
   void _tick() {
     // 无外部音量时，纯正弦波驱动（模拟说话中的自然颤动）
     _phase += 2 * math.pi * _frequency / 60;
-    _mouthOpen = _minMouthOpen + (_amplitude * math.sin(_phase)).clamp(0, _amplitude);
+    _mouthOpen =
+        _minMouthOpen + (_amplitude * math.sin(_phase)).clamp(0, _amplitude);
     // 把嘴型值推到流，供监听方（Live2D 控制器）实时驱动口型
     if (!_mouthController.isClosed) _mouthController.add(_mouthOpen);
   }

@@ -111,75 +111,75 @@ class AppTheme {
 
   /// 亮色主题（简约少年系 · 白底）
   static ThemeData get light => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: bamboo,
-          brightness: Brightness.light,
-          surface: paper,
-          onSurface: softText,
+    useMaterial3: true,
+    brightness: Brightness.light,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: bamboo,
+      brightness: Brightness.light,
+      surface: paper,
+      onSurface: softText,
+    ),
+    scaffoldBackgroundColor: paper,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: paper,
+      foregroundColor: softText,
+      elevation: 0,
+    ),
+    cardTheme: CardThemeData(
+      color: Colors.white,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusLg),
+        side: const BorderSide(color: Color(0x1A212121), width: 0.5),
+      ),
+    ),
+    // 圆角输入框（胶囊 20）
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusXl),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(radiusXl),
+        borderSide: const BorderSide(color: bambooDeep, width: 1.5),
+      ),
+    ),
+    // 圆角主按钮
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: bamboo,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(radiusXl),
         ),
-        scaffoldBackgroundColor: paper,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: paper,
-          foregroundColor: softText,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          color: Colors.white,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLg),
-            side: const BorderSide(color: Color(0x1A212121), width: 0.5),
-          ),
-        ),
-        // 圆角输入框（胶囊 20）
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusXl),
-            borderSide: BorderSide.none,
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(radiusXl),
-            borderSide: const BorderSide(color: bambooDeep, width: 1.5),
-          ),
-        ),
-        // 圆角主按钮
-        filledButtonTheme: FilledButtonThemeData(
-          style: FilledButton.styleFrom(
-            backgroundColor: bamboo,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radiusXl),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          ),
-        ),
-      );
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      ),
+    ),
+  );
 
   /// 暗色主题
   static ThemeData get dark => ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: bamboo,
-          brightness: Brightness.dark,
-          surface: darkBg,
-        ),
-        scaffoldBackgroundColor: darkBg,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: darkBg,
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        cardTheme: CardThemeData(
-          color: darkCard,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusLg),
-          ),
-        ),
-      );
+    useMaterial3: true,
+    brightness: Brightness.dark,
+    colorScheme: ColorScheme.fromSeed(
+      seedColor: bamboo,
+      brightness: Brightness.dark,
+      surface: darkBg,
+    ),
+    scaffoldBackgroundColor: darkBg,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: darkBg,
+      foregroundColor: Colors.white,
+      elevation: 0,
+    ),
+    cardTheme: CardThemeData(
+      color: darkCard,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(radiusLg),
+      ),
+    ),
+  );
 }

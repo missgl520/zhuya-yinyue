@@ -34,17 +34,21 @@ import '../../core/auth/client_auth.dart';
 import '../../core/config.dart';
 
 import '../../domain/entities/message.dart';
+
 /// 2. 解析 SSE 流事件
 /// 3. 将事件转换为 ChatEvent 推送给调用方
 class ChatService {
   ChatService({Dio? dio})
-      : _dio = (dio ??
-            Dio(BaseOptions(
-              baseUrl: BackendConfig.instance.baseUrl,
-              connectTimeout: const Duration(seconds: 10),
-              receiveTimeout: const Duration(seconds: 30),
-            )))
-          ..interceptors.add(SigningInterceptor());
+    : _dio =
+          (dio ??
+                Dio(
+                  BaseOptions(
+                    baseUrl: BackendConfig.instance.baseUrl,
+                    connectTimeout: const Duration(seconds: 10),
+                    receiveTimeout: const Duration(seconds: 30),
+                  ),
+                ))
+            ..interceptors.add(SigningInterceptor());
 
   final Dio _dio;
 
@@ -80,18 +84,15 @@ class ChatService {
       // ── 第1步：构造请求体 ──────────────────────────────
       // 历史消息转成 [{role, content}, ...] 格式
       final messages = [
-        ...history.map((m) => {
-              'role': m.role,
-              'content': m.content,
-            }),
+        ...history.map((m) => {'role': m.role, 'content': m.content}),
         {'role': 'user', 'content': message},
       ];
 
       final body = <String, dynamic>{
         'message': message,
         'history': messages,
-        'temperature': 0.8,   // 随机性参数，越高越有创意
-        'max_tokens': 500,    // 最大输出 token 数
+        'temperature': 0.8, // 随机性参数，越高越有创意
+        'max_tokens': 500, // 最大输出 token 数
       };
 
       if (systemPrompt != null) {
@@ -108,7 +109,7 @@ class ChatService {
         '/chat/v2',
         data: body,
         options: Options(
-          responseType: ResponseType.stream,  // ← 关键：告诉 Dio 要流式接收
+          responseType: ResponseType.stream, // ← 关键：告诉 Dio 要流式接收
           headers: {'Accept': 'text/event-stream'},
         ),
       );
@@ -130,7 +131,14 @@ class ChatService {
           final trimmed = line.trim();
           if (trimmed.isEmpty) {
             // \n\n 分隔符，一条事件结束了
-            _dispatch(_currentEvent, _textBuffer.toString(), onText, onEmotion, onAffinity, onError);
+            _dispatch(
+              _currentEvent,
+              _textBuffer.toString(),
+              onText,
+              onEmotion,
+              onAffinity,
+              onError,
+            );
             _textBuffer.clear();
             _currentEvent = 'text'; // 重置默认事件类型
             continue;
@@ -148,7 +156,14 @@ class ChatService {
 
       // 流结束，最后一条事件可能没有 \n\n
       if (_textBuffer.isNotEmpty) {
-        _dispatch(_currentEvent, _textBuffer.toString(), onText, onEmotion, onAffinity, onError);
+        _dispatch(
+          _currentEvent,
+          _textBuffer.toString(),
+          onText,
+          onEmotion,
+          onAffinity,
+          onError,
+        );
       }
 
       onDone?.call();
@@ -252,10 +267,7 @@ class ChatService {
   /// 单独检测情绪（不走流式）
   Future<String> detectEmotion(String text) async {
     try {
-      final resp = await _dio.post(
-        '/emotion',
-        data: {'text': text},
-      );
+      final resp = await _dio.post('/emotion', data: {'text': text});
       final data = resp.data as Map<String, dynamic>;
       return data['emotion'] as String? ?? 'neutral';
     } catch (_) {
@@ -266,9 +278,10 @@ class ChatService {
   /// 检查后端是否在线
   Future<bool> isOnline() async {
     try {
-      final resp = await _dio.get('/health', options: Options(
-        receiveTimeout: const Duration(seconds: 5),
-      ));
+      final resp = await _dio.get(
+        '/health',
+        options: Options(receiveTimeout: const Duration(seconds: 5)),
+      );
       return resp.statusCode == 200;
     } catch (_) {
       return false;

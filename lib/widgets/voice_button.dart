@@ -37,9 +37,10 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.3).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.3,
+    ).animate(CurvedAnimation(parent: _pulseController, curve: Curves.easeOut));
   }
 
   @override
@@ -60,13 +61,13 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
 
   Future<void> _startListening() async {
     if (!_permissionGranted) {
-      _permissionGranted = await ref.read(asrServiceProvider).requestPermission();
+      _permissionGranted = await ref
+          .read(asrServiceProvider)
+          .requestPermission();
       if (!_permissionGranted) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('语音识别不可用（设备不支持或未授权），请改用文字输入'),
-            ),
+            const SnackBar(content: Text('语音识别不可用（设备不支持或未授权），请改用文字输入')),
           );
         }
         return;
@@ -92,9 +93,9 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('语音识别失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('语音识别失败: $e')));
       }
     }
   }
@@ -129,15 +130,11 @@ class _VoiceButtonState extends ConsumerState<VoiceButton>
           width: 48,
           height: 48,
           decoration: BoxDecoration(
-            color: isListening
-                ? const Color(0xFFE53935)
-                : AppTheme.bamboo,
+            color: isListening ? const Color(0xFFE53935) : AppTheme.bamboo,
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: (isListening
-                        ? const Color(0xFFE53935)
-                        : AppTheme.bamboo)
+                color: (isListening ? const Color(0xFFE53935) : AppTheme.bamboo)
                     .withValues(alpha: 0.3),
                 blurRadius: isListening ? 12 : 6,
                 offset: const Offset(0, 3),

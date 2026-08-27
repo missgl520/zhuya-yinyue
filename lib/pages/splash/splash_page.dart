@@ -24,8 +24,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with TickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   // 人物上下浮动动画控制器（呼吸感）
   late AnimationController _floatController;
   late Animation<double> _floatAnim;
@@ -74,9 +73,10 @@ class _SplashPageState extends State<SplashPage>
       vsync: this,
     );
 
-    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
-    );
+    _fadeAnim = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
 
     // 启动动画
     _fadeController.forward();
@@ -187,8 +187,9 @@ class _SplashPageState extends State<SplashPage>
                                 borderRadius: BorderRadius.circular(40),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: AppTheme.bambooDeep
-                                        .withValues(alpha: 0.35),
+                                    color: AppTheme.bambooDeep.withValues(
+                                      alpha: 0.35,
+                                    ),
                                     blurRadius: 40,
                                     offset: const Offset(0, 20),
                                   ),
@@ -216,8 +217,9 @@ class _SplashPageState extends State<SplashPage>
                               letterSpacing: 12,
                               shadows: [
                                 Shadow(
-                                  color: AppTheme.bambooDeep
-                                      .withValues(alpha: 0.3),
+                                  color: AppTheme.bambooDeep.withValues(
+                                    alpha: 0.3,
+                                  ),
                                   blurRadius: 20,
                                 ),
                               ],
@@ -357,14 +359,15 @@ class _ConsentCard extends StatelessWidget {
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(AppTheme.radiusXl),
+                        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
                       ),
                     ),
                     child: const Text(
                       '我已知晓并同意',
-                      style:
-                          TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

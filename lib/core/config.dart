@@ -32,8 +32,10 @@ class BackendConfig {
   /// 开发环境默认：安卓模拟器地址 http://10.0.2.2:8000
   /// 生产环境：打包时用 --dart-define=ZHUYU_API_BASE_URL=https://你的域名:8000 注入
   ///   （也可直接用 http://域名:8000，但公网强烈建议走 HTTPS）
-  static const String _defaultBaseUrl =
-      String.fromEnvironment('ZHUYU_API_BASE_URL', defaultValue: 'http://10.0.2.2:8000');
+  static const String _defaultBaseUrl = String.fromEnvironment(
+    'ZHUYU_API_BASE_URL',
+    defaultValue: 'http://10.0.2.2:8000',
+  );
 
   /// 默认唤醒词（用户还没设置过时的兜底值）
   static const String _defaultWakeWord = '竹笌竹笌';

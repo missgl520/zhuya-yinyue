@@ -32,7 +32,7 @@ class AgnesService {
   static const _apiCN = 'https://apihub.agnes-ai.cn/v1/chat/completions';
 
   // 当前选中的 API（由 App 在设置页控制）
-  bool _useCN = true;  // 默认国内版
+  bool _useCN = true; // 默认国内版
 
   String? _runtimeApiKey;
 
@@ -54,7 +54,7 @@ class AgnesService {
     List<Map<String, String>> history = const [],
     String? systemPrompt,
     double temperature = 0.7,
-    bool saveToMemory = true,  // 直连模式：忽略，由 App 本地处理
+    bool saveToMemory = true, // 直连模式：忽略，由 App 本地处理
   }) async {
     final body = <String, dynamic>{
       'model': 'agnes-2.0-flash',
@@ -149,7 +149,10 @@ class AgnesService {
       messages.add({'role': 'system', 'content': systemPrompt});
     }
     for (final h in history) {
-      messages.add({'role': h['role'] ?? 'user', 'content': h['content'] ?? ''});
+      messages.add({
+        'role': h['role'] ?? 'user',
+        'content': h['content'] ?? '',
+      });
     }
     messages.add({'role': 'user', 'content': message});
     return messages;

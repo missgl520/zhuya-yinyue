@@ -35,11 +35,7 @@ Future<String> _fetchMemoryContextFromBackend(
 }) async {
   final baseUrl = BackendConfig.instance.baseUrl;
   final uri = Uri.parse('$baseUrl/memory/search').replace(
-    queryParameters: {
-      'q': query,
-      'mode': 'keyword',
-      'limit': limit.toString(),
-    },
+    queryParameters: {'q': query, 'mode': 'keyword', 'limit': limit.toString()},
   );
 
   try {
@@ -52,7 +48,9 @@ Future<String> _fetchMemoryContextFromBackend(
       bodyBytes: const [],
       userId: userId,
     );
-    final resp = await http.get(uri, headers: headers).timeout(const Duration(seconds: 5));
+    final resp = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 5));
     if (resp.statusCode != 200) return '';
 
     final data = jsonDecode(resp.body) as Map<String, dynamic>;
@@ -261,15 +259,10 @@ class MemoryService {
   /// 取全部记忆并解密 content，按 created_at 倒序
   Future<List<MemoryItem>> _getAllDecrypted() async {
     if (!_isInitialized) await init();
-    final rows = await _db!.query(
-      'memories',
-      orderBy: 'created_at DESC',
-    );
+    final rows = await _db!.query('memories', orderBy: 'created_at DESC');
     final out = <MemoryItem>[];
     for (final row in rows) {
-      final content = await LocalEncryption.decrypt(
-        row['content'] as String,
-      );
+      final content = await LocalEncryption.decrypt(row['content'] as String);
       out.add(_rowToMemory(row, decryptedContent: content));
     }
     return out;
@@ -324,9 +317,7 @@ class MemoryService {
     );
     final out = <MemoryItem>[];
     for (final row in rows) {
-      final content = await LocalEncryption.decrypt(
-        row['content'] as String,
-      );
+      final content = await LocalEncryption.decrypt(row['content'] as String);
       out.add(_rowToMemory(row, decryptedContent: content));
     }
     return out;
@@ -340,7 +331,10 @@ class MemoryService {
   /// 兜底：本地 SQLite 搜索（后端不通时）
   Future<String> buildContext(String query, {int limit = 5}) async {
     // 优先调后端 SinoMem
-    final backendCtx = await _fetchMemoryContextFromBackend(query, limit: limit);
+    final backendCtx = await _fetchMemoryContextFromBackend(
+      query,
+      limit: limit,
+    );
     if (backendCtx.isNotEmpty) return backendCtx;
 
     // 兜底：本地 SQLite
@@ -367,11 +361,11 @@ class MemoryService {
     try {
       tags = tagsStr.startsWith('[')
           ? tagsStr
-              .substring(1, tagsStr.length - 1)
-              .split(',')
-              .map((s) => s.trim().replaceAll(RegExp(r"^'|'$"), ''))
-              .where((s) => s.isNotEmpty)
-              .toList()
+                .substring(1, tagsStr.length - 1)
+                .split(',')
+                .map((s) => s.trim().replaceAll(RegExp(r"^'|'$"), ''))
+                .where((s) => s.isNotEmpty)
+                .toList()
           : <String>[];
     } catch (_) {
       tags = [];

@@ -63,12 +63,12 @@ class Affinity {
 
   /// 转 JSON
   Map<String, dynamic> toJson() => {
-        'trust': trust,
-        'intimacy': intimacy,
-        'familiarity': familiarity,
-        'total_interactions': totalInteractions,
-        'streak_days': streakDays,
-      };
+    'trust': trust,
+    'intimacy': intimacy,
+    'familiarity': familiarity,
+    'total_interactions': totalInteractions,
+    'streak_days': streakDays,
+  };
 
   /// 关系等级描述文字
   String get level {

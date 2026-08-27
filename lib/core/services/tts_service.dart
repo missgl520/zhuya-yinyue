@@ -64,7 +64,8 @@ class TtsService {
       if (bytes == null || bytes.isEmpty) return; // 静默降级
       final dir = await getTemporaryDirectory();
       final file = File(
-          '${dir.path}/zhuyu_tts_${DateTime.now().microsecondsSinceEpoch}.wav');
+        '${dir.path}/zhuyu_tts_${DateTime.now().microsecondsSinceEpoch}.wav',
+      );
       await file.writeAsBytes(bytes);
       try {
         await _player.stop();
@@ -79,9 +80,12 @@ class TtsService {
             if (!done.isCompleted) done.complete();
           }
         });
-        await done.future.timeout(const Duration(seconds: 60), onTimeout: () {
-          sub.cancel();
-        });
+        await done.future.timeout(
+          const Duration(seconds: 60),
+          onTimeout: () {
+            sub.cancel();
+          },
+        );
       } finally {
         try {
           await file.delete();

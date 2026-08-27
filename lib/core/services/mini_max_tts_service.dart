@@ -36,9 +36,9 @@ import 'package:just_audio/just_audio.dart';
 
 /// 情感角色类型（与竹笌的人设情绪对应）
 enum PersonaVoice {
-  gentle,  // 温柔甜美
+  gentle, // 温柔甜美
   playful, // 俏皮少女
-  wise,    // 沉稳御姐
+  wise, // 沉稳御姐
 }
 
 /// MiniMax TTS 服务
@@ -60,17 +60,19 @@ class MiniMaxTTSService {
 
   /// MiniMax API Key（生产用 --dart-define=MINIMAX_API_KEY=xxx 注入）。
   /// 留空表示未配置，speak() 会返回 false 让上层降级到系统 TTS。
-  static const String _apiKey =
-      String.fromEnvironment('MINIMAX_API_KEY', defaultValue: '');
+  static const String _apiKey = String.fromEnvironment(
+    'MINIMAX_API_KEY',
+    defaultValue: '',
+  );
 
   /// 是否已配置真实 API Key（未配置时上层应降级到系统 TTS）。
   bool get isConfigured => _apiKey.isNotEmpty;
 
   /// 角色 → 音色 ID 映射（MiniMax 官方中文系统音色，均已验证可用）
   static const _voiceIds = {
-    PersonaVoice.gentle: 'female-tianmei',   // 甜美女性
-    PersonaVoice.playful: 'female-shaonv',   // 少女音色
-    PersonaVoice.wise: 'female-yujie',       // 御姐音色
+    PersonaVoice.gentle: 'female-tianmei', // 甜美女性
+    PersonaVoice.playful: 'female-shaonv', // 少女音色
+    PersonaVoice.wise: 'female-yujie', // 御姐音色
   };
 
   final Dio _dio = Dio();
@@ -206,12 +208,15 @@ class MiniMaxTTSService {
       if (statusCode != 0) {
         // 余额不足等错误，打印一次便于排查，但不抛异常（上层降级）
         // ignore: avoid_print
-        print('[MiniMaxTTS] 合成失败 status_code=$statusCode '
-            'msg=${baseResp?['status_msg']}');
+        print(
+          '[MiniMaxTTS] 合成失败 status_code=$statusCode '
+          'msg=${baseResp?['status_msg']}',
+        );
         return null;
       }
 
-      final audioField = (data['data'] as Map<String, dynamic>?)?['audio'] ??
+      final audioField =
+          (data['data'] as Map<String, dynamic>?)?['audio'] ??
           (data['data'] as Map<String, dynamic>?)?['audio_file'];
       if (audioField == null) return null;
       final audioStr = audioField.toString();

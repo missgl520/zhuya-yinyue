@@ -51,7 +51,8 @@ class Emotion {
     return Emotion(
       emotion: json['emotion'] as String? ?? 'neutral',
       confidence: (json['confidence'] as num?)?.toDouble() ?? 0.5,
-      scores: (json['scores'] as Map<String, dynamic>?)?.map(
+      scores:
+          (json['scores'] as Map<String, dynamic>?)?.map(
             (k, v) => MapEntry(k, (v as num).toDouble()),
           ) ??
           {},
@@ -60,10 +61,10 @@ class Emotion {
 
   /// 转 JSON（用于调试/日志）
   Map<String, dynamic> toJson() => {
-        'emotion': emotion,
-        'confidence': confidence,
-        'scores': scores,
-      };
+    'emotion': emotion,
+    'confidence': confidence,
+    'scores': scores,
+  };
 
   /// 获取某一维度的情绪强度
   double score(String dimension) => scores[dimension] ?? 0.0;

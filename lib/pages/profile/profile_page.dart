@@ -59,7 +59,10 @@ class ProfilePage extends StatelessWidget {
                             color: const Color(0xFFFBE4D5),
                           ),
                           alignment: Alignment.center,
-                          child: const Text('🐶', style: TextStyle(fontSize: 28)),
+                          child: const Text(
+                            '🐶',
+                            style: TextStyle(fontSize: 28),
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Expanded(
@@ -159,10 +162,7 @@ class _MenuTile extends StatelessWidget {
             fontWeight: FontWeight.w500,
           ),
         ),
-        trailing: const Icon(
-          Icons.chevron_right,
-          color: Color(0xFF9E9E9E),
-        ),
+        trailing: const Icon(Icons.chevron_right, color: Color(0xFF9E9E9E)),
       ),
     );
   }

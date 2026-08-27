@@ -33,9 +33,9 @@ import 'package:just_audio/just_audio.dart';
 
 /// 情感角色类型
 enum PersonaVoice {
-  gentle,  // 温柔
+  gentle, // 温柔
   playful, // 俏皮
-  wise,    // 智慧
+  wise, // 智慧
 }
 
 /// Cartesia TTS 服务
@@ -53,8 +53,10 @@ class CartesiaTTSService {
 
   /// Cartesia API Key（生产用 --dart-define=CARTESIA_API_KEY=xxx 注入）。
   /// 留空表示未配置，speak() 会返回 false 让上层降级到系统 TTS。
-  static const String _apiKey =
-      String.fromEnvironment('CARTESIA_API_KEY', defaultValue: '');
+  static const String _apiKey = String.fromEnvironment(
+    'CARTESIA_API_KEY',
+    defaultValue: '',
+  );
 
   /// 是否已配置真实 API Key（未配置时上层应降级到系统 TTS）。
   bool get isConfigured => _apiKey.isNotEmpty;
@@ -62,9 +64,12 @@ class CartesiaTTSService {
   /// 角色 → Voice ID 映射（Cartesia 官方音色）
   /// 这些 voice_id 是 Cartesia 平台注册过的音色
   static const _voiceIds = {
-    PersonaVoice.gentle: 's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/gentle.wav',
-    PersonaVoice.playful: 's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/playful.wav',
-    PersonaVoice.wise: 's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/wise.wav',
+    PersonaVoice.gentle:
+        's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/gentle.wav',
+    PersonaVoice.playful:
+        's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/playful.wav',
+    PersonaVoice.wise:
+        's3://voice-cloning-zero-shot/dad11b85-b737-410a-bd16-95e3a6c3f3b4/wise.wav',
   };
 
   /// 角色 → 情感标签映射（Cartesia 支持的情感参数）
@@ -170,7 +175,11 @@ class CartesiaTTSService {
           'text': text,
           'voice': {'mode': 's3', 's3_url': _voiceIds[persona]},
           'emotion': _emotionLabels[persona],
-          'output_format': {'container': 'wav', 'encoding': 'pcm_s16le', 'sample_rate': 24000},
+          'output_format': {
+            'container': 'wav',
+            'encoding': 'pcm_s16le',
+            'sample_rate': 24000,
+          },
         },
         options: Options(
           headers: {

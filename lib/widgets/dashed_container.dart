@@ -35,15 +35,15 @@ class DashedContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: margin,
-        child: CustomPaint(
-          foregroundPainter: _DashedPainter(
-            color: borderColor,
-            strokeWidth: strokeWidth,
-            dashWidth: dashWidth,
-            dashGap: dashGap,
-            borderRadius: borderRadius,
-          ),
-          child: Container(
+      child: CustomPaint(
+        foregroundPainter: _DashedPainter(
+          color: borderColor,
+          strokeWidth: strokeWidth,
+          dashWidth: dashWidth,
+          dashGap: dashGap,
+          borderRadius: borderRadius,
+        ),
+        child: Container(
           padding: padding,
           decoration: BoxDecoration(
             color: backgroundColor,

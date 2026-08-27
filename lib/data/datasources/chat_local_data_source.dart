@@ -60,11 +60,7 @@ class ChatLocalDataSource {
     try {
       final dbPath = await getDatabasesPath();
       final path = join(dbPath, _dbName);
-      _db = await openDatabase(
-        path,
-        version: _dbVersion,
-        onCreate: _onCreate,
-      );
+      _db = await openDatabase(path, version: _dbVersion, onCreate: _onCreate);
       _initialized = true;
       if (!_initLock.isCompleted) _initLock.complete();
     } catch (e) {
@@ -186,13 +182,15 @@ class ChatLocalDataSource {
     final out = <Message>[];
     for (final row in rows) {
       final content = await LocalEncryption.decrypt(row['content'] as String);
-      out.add(Message(
-        id: row['id'] as String,
-        role: row['role'] as String,
-        content: content,
-        timestamp: DateTime.parse(row['created_at'] as String),
-        pendingSync: (row['pending_sync'] as int) == 1,
-      ));
+      out.add(
+        Message(
+          id: row['id'] as String,
+          role: row['role'] as String,
+          content: content,
+          timestamp: DateTime.parse(row['created_at'] as String),
+          pendingSync: (row['pending_sync'] as int) == 1,
+        ),
+      );
     }
     return out;
   }
@@ -205,16 +203,12 @@ class ChatLocalDataSource {
   }) async {
     await _ensureInit();
     final enc = await LocalEncryption.encrypt(message);
-    await _db!.insert(
-      'outbox',
-      {
-        'client_msg_id': clientMsgId,
-        'message': enc,
-        'created_at': DateTime.now().toIso8601String(),
-        'attempts': 0,
-      },
-      conflictAlgorithm: ConflictAlgorithm.ignore,
-    );
+    await _db!.insert('outbox', {
+      'client_msg_id': clientMsgId,
+      'message': enc,
+      'created_at': DateTime.now().toIso8601String(),
+      'attempts': 0,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
   Future<List<OutboxItem>> getPendingOutbox() async {
@@ -223,12 +217,14 @@ class ChatLocalDataSource {
     final out = <OutboxItem>[];
     for (final row in rows) {
       final msg = await LocalEncryption.decrypt(row['message'] as String);
-      out.add(OutboxItem(
-        clientMsgId: row['client_msg_id'] as String,
-        message: msg,
-        attempts: (row['attempts'] as int?) ?? 0,
-        lastError: row['last_error'] as String?,
-      ));
+      out.add(
+        OutboxItem(
+          clientMsgId: row['client_msg_id'] as String,
+          message: msg,
+          attempts: (row['attempts'] as int?) ?? 0,
+          lastError: row['last_error'] as String?,
+        ),
+      );
     }
     return out;
   }

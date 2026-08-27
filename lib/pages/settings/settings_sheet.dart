@@ -254,7 +254,10 @@ class _MenuItem extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           subtitle!,
-                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
                         ),
                       ],
                     ],
@@ -276,7 +279,9 @@ class _MenuItem extends ConsumerWidget {
         AnimatedCrossFade(
           firstChild: const SizedBox.shrink(),
           secondChild: children,
-          crossFadeState: expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          crossFadeState: expanded
+              ? CrossFadeState.showSecond
+              : CrossFadeState.showFirst,
           duration: const Duration(milliseconds: 250),
         ),
       ],
@@ -312,7 +317,11 @@ class _AboutContent extends StatelessWidget {
                         color: AppTheme.bamboo.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(Icons.eco, color: AppTheme.bamboo, size: 28),
+                      child: const Icon(
+                        Icons.eco,
+                        color: AppTheme.bamboo,
+                        size: 28,
+                      ),
                     ),
                     const SizedBox(width: 14),
                     const Expanded(
@@ -321,7 +330,10 @@ class _AboutContent extends StatelessWidget {
                         children: [
                           Text(
                             '竹笌',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           SizedBox(height: 2),
                           Text(
@@ -382,7 +394,10 @@ class _SoundContent extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('音色', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+                  const Text(
+                    '音色',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
@@ -391,7 +406,8 @@ class _SoundContent extends ConsumerWidget {
                           label: '✨ MiniMax 语音',
                           selected: ttsMode == 'minimax',
                           onTap: () {
-                            ref.read(ttsModeProvider.notifier).state = 'minimax';
+                            ref.read(ttsModeProvider.notifier).state =
+                                'minimax';
                             Hive.box('settings').put('ttsMode', 'minimax');
                           },
                         ),
@@ -431,7 +447,11 @@ class _VoiceContent extends StatelessWidget {
         children: [
           _InfoRow(icon: Icons.mic, text: '语音识别引擎', value: '系统默认'),
           const SizedBox(height: 8),
-          _InfoRow(icon: Icons.record_voice_over, text: '唤醒词', value: BackendConfig.instance.wakeWord),
+          _InfoRow(
+            icon: Icons.record_voice_over,
+            text: '唤醒词',
+            value: BackendConfig.instance.wakeWord,
+          ),
         ],
       ),
     );
@@ -531,7 +551,11 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
         children: [
           const Text(
             '添加 API 链接模型',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -608,7 +632,10 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
                         ? const SizedBox(
                             width: 16,
                             height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Icon(Icons.save, size: 18),
                     label: const Text('保存 API 链接'),
@@ -626,7 +653,12 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
               padding: const EdgeInsets.only(top: 10),
               child: Text(
                 _hint!,
-                style: TextStyle(fontSize: 12, color: _hint!.contains('✅') ? AppTheme.bamboo : Colors.red.shade600),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: _hint!.contains('✅')
+                      ? AppTheme.bamboo
+                      : Colors.red.shade600,
+                ),
               ),
             ),
         ],
@@ -648,7 +680,11 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
       ),
       child: const Row(
         children: [
-          Icon(Icons.warning_amber_outlined, color: Color(0xFFB5811F), size: 18),
+          Icon(
+            Icons.warning_amber_outlined,
+            color: Color(0xFFB5811F),
+            size: 18,
+          ),
           SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -684,16 +720,25 @@ class _SwitchRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+              Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ],
           ),
         ),
         Switch(
           value: value,
           // ignore: deprecated_member_use
-  activeColor: AppTheme.bamboo,
+          activeColor: AppTheme.bamboo,
           onChanged: onChanged,
         ),
       ],

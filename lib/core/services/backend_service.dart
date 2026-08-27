@@ -37,11 +37,13 @@ class BackendService {
   static final BackendService instance = BackendService._();
 
   /// HTTP 客户端（复用 Dio 实例，不要每次请求都 new）
-  final Dio _dio = Dio(BaseOptions(
-    baseUrl: BackendConfig.instance.baseUrl,
-    connectTimeout: const Duration(seconds: 10),
-    receiveTimeout: const Duration(seconds: 30),
-  ))..interceptors.add(SigningInterceptor());
+  final Dio _dio = Dio(
+    BaseOptions(
+      baseUrl: BackendConfig.instance.baseUrl,
+      connectTimeout: const Duration(seconds: 10),
+      receiveTimeout: const Duration(seconds: 30),
+    ),
+  )..interceptors.add(SigningInterceptor());
 
   /// 底层 SSE 对话服务（复用 ChatService）
   final ChatService _chatService = ChatService();
@@ -63,12 +65,16 @@ class BackendService {
   }) {
     return _chatService.streamChat(
       message: message,
-      history: history.map((m) => domain.Message(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        role: m['role'] ?? 'user',
-        content: m['content'] ?? '',
-        timestamp: DateTime.now(),
-      )).toList(),
+      history: history
+          .map(
+            (m) => domain.Message(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              role: m['role'] ?? 'user',
+              content: m['content'] ?? '',
+              timestamp: DateTime.now(),
+            ),
+          )
+          .toList(),
       systemPrompt: systemPrompt,
       onText: onText,
       onEmotion: onEmotion,
@@ -131,10 +137,10 @@ class BackendService {
   /// 搜索记忆
   Future<List<Map<String, dynamic>>> searchMemories(String query) async {
     try {
-      final resp = await _dio.get('/memory/search', queryParameters: {
-        'q': query,
-        'limit': 20,
-      });
+      final resp = await _dio.get(
+        '/memory/search',
+        queryParameters: {'q': query, 'limit': 20},
+      );
       final data = resp.data as Map<String, dynamic>;
       return List<Map<String, dynamic>>.from(data['memories'] ?? []);
     } catch (_) {
@@ -219,7 +225,7 @@ class BackendService {
   }
 }
 
-  /// 好感度数据（BackendService 内部用）
+/// 好感度数据（BackendService 内部用）
 /// 命名为 BackendAffinityData 避免与 providers/app_providers_legacy.dart 的 AffinityData 冲突
 class BackendAffinityData {
   final double trust;

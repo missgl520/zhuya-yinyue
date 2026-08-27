@@ -44,18 +44,17 @@ class AvatarFullscreenPage extends StatelessWidget {
             bottom: 24,
             child: Center(
               child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Text(
                   '拖动旋转 · 滚轮缩放',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF666666),
-                  ),
+                  style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
                 ),
               ),
             ),

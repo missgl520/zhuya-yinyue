@@ -21,7 +21,9 @@ import '../../core/services/livekit_service.dart';
 import '../../core/theme/app_theme.dart';
 
 /// LiveKit 通话状态
-final liveKitStateProvider = StateProvider<LiveKitState>((_) => LiveKitState.idle);
+final liveKitStateProvider = StateProvider<LiveKitState>(
+  (_) => LiveKitState.idle,
+);
 
 /// LiveKit 连接错误信息
 final liveKitErrorProvider = StateProvider<String?>((_) => null);
@@ -33,9 +35,9 @@ class VoiceCallPage extends ConsumerStatefulWidget {
   const VoiceCallPage({super.key});
 
   static void show(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const VoiceCallPage()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const VoiceCallPage()));
   }
 
   @override
@@ -100,9 +102,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
     } catch (e) {
       // 静音失败不影响 UI 状态，仅回退标记
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('麦克风操作失败：$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('麦克风操作失败：$e')));
       }
     }
   }
@@ -140,7 +142,10 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                   const Spacer(),
                   if (state == LiveKitState.connected)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.white.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -166,7 +171,8 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             Stack(
               alignment: Alignment.center,
               children: [
-                if (state == LiveKitState.connected) _SoundWaves(animation: _waveController),
+                if (state == LiveKitState.connected)
+                  _SoundWaves(animation: _waveController),
                 Container(
                   width: 120,
                   height: 120,
@@ -204,10 +210,7 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
             // ── 状态文字 ──
             Text(
               _stateText(state),
-              style: TextStyle(
-                color: _stateColor(state),
-                fontSize: 15,
-              ),
+              style: TextStyle(color: _stateColor(state), fontSize: 15),
             ),
 
             if (error != null) ...[
@@ -232,7 +235,10 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(28),
@@ -249,7 +255,9 @@ class _VoiceCallPageState extends ConsumerState<VoiceCallPage>
                           icon: _isMuted ? Icons.mic_off : Icons.mic,
                           label: _isMuted ? '取消静音' : '静音',
                           isActive: !_isMuted,
-                          onTap: state == LiveKitState.connected ? _toggleMute : null,
+                          onTap: state == LiveKitState.connected
+                              ? _toggleMute
+                              : null,
                         ),
 
                         const SizedBox(width: 40),

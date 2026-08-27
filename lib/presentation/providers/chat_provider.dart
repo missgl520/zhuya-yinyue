@@ -54,16 +54,16 @@ enum ConversationStatus {
 
 /// 对话状态数据（不可变类）
 class ChatState {
-  final ConversationStatus status;           // 当前状态
-  final List<Message> messages;              // 消息历史
-  final String? currentText;                 // 当前正在输出的文字（拼接中）
-  final String? error;                      // 错误信息（null = 无错误）
+  final ConversationStatus status; // 当前状态
+  final List<Message> messages; // 消息历史
+  final String? currentText; // 当前正在输出的文字（拼接中）
+  final String? error; // 错误信息（null = 无错误）
 
   /// 错误信息别名（兼容旧代码 chat_page.dart）
   String? get errorMessage => error;
-  final Emotion? currentEmotion;            // 当前情绪
-  final Affinity? affinity;                // 好感度
-  final bool isSpeaking;                    // 是否正在播放 TTS
+  final Emotion? currentEmotion; // 当前情绪
+  final Affinity? affinity; // 好感度
+  final bool isSpeaking; // 是否正在播放 TTS
 
   const ChatState({
     this.status = ConversationStatus.idle,
@@ -241,10 +241,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// 取消当前对话（停止流式输出）
   void cancel() {
-    state = state.copyWith(
-      status: ConversationStatus.idle,
-      currentText: null,
-    );
+    state = state.copyWith(status: ConversationStatus.idle, currentText: null);
   }
 
   /// 清空对话历史
@@ -256,16 +253,12 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// 手动设置情绪（用于非对话场景）
   void setEmotion(String emotion) {
-    state = state.copyWith(
-      currentEmotion: Emotion(emotion: emotion),
-    );
+    state = state.copyWith(currentEmotion: Emotion(emotion: emotion));
   }
 
   /// 重置情绪（回到中性）
   void resetEmotion() {
-    state = state.copyWith(
-      currentEmotion: const Emotion(emotion: 'neutral'),
-    );
+    state = state.copyWith(currentEmotion: const Emotion(emotion: 'neutral'));
   }
 
   // ── TTS 播放状态 ──────────────────────────────────
@@ -280,17 +273,15 @@ class ChatNotifier extends StateNotifier<ChatState> {
 
   /// 结束 TTS 播放
   void stopSpeaking() {
-    state = state.copyWith(
-      status: ConversationStatus.idle,
-      isSpeaking: false,
-    );
+    state = state.copyWith(status: ConversationStatus.idle, isSpeaking: false);
   }
 }
 
 // ── 全局 Provider 声明 ─────────────────────────────────
 // Riverpod 会自动管理生命周期，无需手动 dispose
-final chatNotifierProvider =
-    StateNotifierProvider<ChatNotifier, ChatState>((ref) {
+final chatNotifierProvider = StateNotifierProvider<ChatNotifier, ChatState>((
+  ref,
+) {
   return ChatNotifier();
 });
 

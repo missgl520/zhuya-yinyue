@@ -53,9 +53,9 @@ class ImagePickerButton extends StatelessWidget {
       if (xfile != null) onImagePicked?.call(xfile.path);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('选择图片失败：$e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('选择图片失败：$e')));
       }
     }
   }

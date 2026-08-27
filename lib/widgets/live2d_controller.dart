@@ -24,17 +24,17 @@ import '../core/services/lip_sync_service.dart';
 
 /// 竹笌的 Live2D 动画状态
 enum ZhuaLive2DStatus {
-  idle,      // 待机
-  thinking,  // 等回复
-  speaking,  // 竹笌在说话（TTS）
+  idle, // 待机
+  thinking, // 等回复
+  speaking, // 竹笌在说话（TTS）
   listening, // 用户在说话（ASR）
 }
 
 /// 触摸区域（v2.0 精细分区）
 enum TouchZone {
-  head,   // 头部区域（上方 50%，含边缘留白）
-  body,   // 身体区域（下方 50%，含边缘留白）
-  edge,   // 边缘区域（宽/高 < 5% 的窄边，不响应）
+  head, // 头部区域（上方 50%，含边缘留白）
+  body, // 身体区域（下方 50%，含边缘留白）
+  edge, // 边缘区域（宽/高 < 5% 的窄边，不响应）
 }
 
 /// Live2D 全局控制器（单例）
@@ -120,7 +120,7 @@ class ZhuaLive2DController {
           await viewController.setExpression(1); // exp_02 思考
         case ZhuaLive2DStatus.speaking:
           await viewController.setExpression(2); // exp_03 说话
-          // 不再播放 motion（会覆盖程序化四肢），手部比划由帧循环 _speaking 接管
+        // 不再播放 motion（会覆盖程序化四肢），手部比划由帧循环 _speaking 接管
         case ZhuaLive2DStatus.listening:
           await viewController.setExpression(3); // exp_04 专注
       }
@@ -212,8 +212,8 @@ class ZhuaLive2DController {
   void _animateFrame() {
     if (!_modelLoaded || _disposed) return;
     final t = (_animStart == null
-            ? 0.0
-            : DateTime.now().difference(_animStart!).inMilliseconds / 1000.0);
+        ? 0.0
+        : DateTime.now().difference(_animStart!).inMilliseconds / 1000.0);
 
     // 步态相位：0.85 Hz ≈ 正常步行（一秒走 0.85 个完整步态循环 = 1.7 步/秒）
     final gaitHz = 0.85;
@@ -231,29 +231,37 @@ class ZhuaLive2DController {
     _safeSet('ParamArmR01', -5.0 - 5.5 * gs * armBoost * lp + react);
     _safeSet('ParamArmL02', -2.0 + 4.0 * gs);
     _safeSet('ParamArmR02', -2.0 - 4.0 * gs);
-    _safeSet('ParamArmL03',  2.0 + 3.5 * gs);
-    _safeSet('ParamArmR03',  2.0 - 3.5 * gs);
+    _safeSet('ParamArmL03', 2.0 + 3.5 * gs);
+    _safeSet('ParamArmR03', 2.0 - 3.5 * gs);
 
     // ━━━ 肩：随对侧手臂交替微抬（自然步行联动） ━━━
-    _safeSet('ParamLeftShoulderUp',  1.5 + 2.0 * gs + react);
+    _safeSet('ParamLeftShoulderUp', 1.5 + 2.0 * gs + react);
     _safeSet('ParamRightShoulderUp', 1.5 - 2.0 * gs);
 
     // ━━━ 手：微动 + 说话时额外比划 ━━━
-    _safeSet('ParamHandL', 0.5 + 1.5 * sin(0.7 * g) +
-        (_speaking ? 1.2 * sin(2 * pi * 1.4 * t) : 0.0));
-    _safeSet('ParamHandR', 0.3 - 1.5 * sin(0.7 * g) +
-        (_speaking ? 1.2 * sin(2 * pi * 1.4 * t + pi) : 0.0));
+    _safeSet(
+      'ParamHandL',
+      0.5 +
+          1.5 * sin(0.7 * g) +
+          (_speaking ? 1.2 * sin(2 * pi * 1.4 * t) : 0.0),
+    );
+    _safeSet(
+      'ParamHandR',
+      0.3 -
+          1.5 * sin(0.7 * g) +
+          (_speaking ? 1.2 * sin(2 * pi * 1.4 * t + pi) : 0.0),
+    );
 
     // ━━━ 躯干：步行重心左右转移 + 扭转 + 髋部反向扭（制造腿部摆动感） ━━━
-    _safeSet('ParamBodyAngleX',  2.0 * gs * lp);          // 左右重心转移
-    _safeSet('ParamBodyAngleZ', -1.0 + 1.5 * gs * lp);    // 躯干扭转
-    _safeSet('ParamWaistAngleZ', -1.0 - 2.0 * gs * lp);   // 髋部反向扭（腿跟着微微甩）
-    _safeSet('ParamBodyAngleY',  1.5 + 1.2 * sin(2 * g) * lp); // 蹦跶跑：明显前倾/恢复
+    _safeSet('ParamBodyAngleX', 2.0 * gs * lp); // 左右重心转移
+    _safeSet('ParamBodyAngleZ', -1.0 + 1.5 * gs * lp); // 躯干扭转
+    _safeSet('ParamWaistAngleZ', -1.0 - 2.0 * gs * lp); // 髋部反向扭（腿跟着微微甩）
+    _safeSet('ParamBodyAngleY', 1.5 + 1.2 * sin(2 * g) * lp); // 蹦跶跑：明显前倾/恢复
 
     // ━━━ 头：自然张望（频率比躯干低，更自然） ━━━
-    _safeSet('ParamAngleX',  3.0 * sin(0.5 * g) * lp);
+    _safeSet('ParamAngleX', 3.0 * sin(0.5 * g) * lp);
     _safeSet('ParamAngleY', -2.0 + 2.0 * sin(0.3 * g) * lp);
-    _safeSet('ParamAngleZ',  2.0 * sin(0.4 * g) * lp);
+    _safeSet('ParamAngleZ', 2.0 * sin(0.4 * g) * lp);
 
     // ━━━ 呼吸 ━━━
     _safeSet('ParamBreath', 0.6 + 0.4 * sin(0.35 * g) * lp);
@@ -261,8 +269,8 @@ class ZhuaLive2DController {
     // ━━━ 假装抬腿跑（蹦跶步态）：模型无膝/踝 deformer，ParamLegL/R 不能真抬脚。
     // 用半波整流腿（明确迈出）+ 加大身体上下颠（chat_page 36px）+ 大幅手摆 + 躯干前倾
     // → 视觉上"蹦跶跑"感（每步上抛 36px + 腿大幅迈出 + 手大幅摆 + 躯干前倾）
-    final liftL = max(0.0, gs);    // 0..1 左腿迈出强度
-    final liftR = max(0.0, -gs);   // 0..1 右腿迈出强度
+    final liftL = max(0.0, gs); // 0..1 左腿迈出强度
+    final liftR = max(0.0, -gs); // 0..1 右腿迈出强度
     _safeSet('ParamLegL', 1.0 + 8.5 * liftL);
     _safeSet('ParamLegR', 1.0 + 8.5 * liftR);
   }
@@ -279,7 +287,10 @@ class ZhuaLive2DController {
   Future<void> setMouthOpen(double value) async {
     if (!_modelLoaded || _disposed) return;
     try {
-      await viewController.setParameter('ParamMouthOpenY', value.clamp(0.0, 1.0));
+      await viewController.setParameter(
+        'ParamMouthOpenY',
+        value.clamp(0.0, 1.0),
+      );
     } catch (e) {
       debugPrint('[ZhuaLive2D] 口型设置失败: $e');
     }
@@ -319,12 +330,12 @@ class ZhuaLive2DController {
     _currentEmotion = emotion;
     // Ren 模型仅 5 个表情（索引 0~4 = exp_01~exp_05），映射到可用范围
     final mapping = {
-      'neutral':   0,
-      'happy':     1,
-      'sad':       2,
-      'angry':     3,
+      'neutral': 0,
+      'happy': 1,
+      'sad': 2,
+      'angry': 3,
       'surprised': 4,
-      'anxious':   4,
+      'anxious': 4,
     };
     final idx = mapping[emotion] ?? 0;
     try {

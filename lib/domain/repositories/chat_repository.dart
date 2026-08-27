@@ -46,10 +46,10 @@ enum ChatEventType {
 /// 后端 SSE 流推送的每条消息，都包装成这个格式
 class ChatEvent {
   final ChatEventType type;
-  final String? token;       // type=token 时：当前新增的文字片段
-  final String? emotion;     // type=emotion 时：情绪标签
+  final String? token; // type=token 时：当前新增的文字片段
+  final String? emotion; // type=emotion 时：情绪标签
   final Map<String, dynamic>? affinity; // type=affinity 时：好感度数据
-  final String? error;      // type=error 时：错误信息
+  final String? error; // type=error 时：错误信息
   final String? clientMsgId; // type=offlineSaved 时：本条消息的幂等 id
 
   const ChatEvent({
@@ -62,31 +62,23 @@ class ChatEvent {
   });
 
   /// 工厂方法：创建一个 token 事件
-  factory ChatEvent.token(String text) => ChatEvent(
-        type: ChatEventType.token,
-        token: text,
-      );
+  factory ChatEvent.token(String text) =>
+      ChatEvent(type: ChatEventType.token, token: text);
 
   /// 工厂方法：结束事件
   factory ChatEvent.done() => const ChatEvent(type: ChatEventType.done);
 
   /// 工厂方法：错误事件
-  factory ChatEvent.error(String message) => ChatEvent(
-        type: ChatEventType.error,
-        error: message,
-      );
+  factory ChatEvent.error(String message) =>
+      ChatEvent(type: ChatEventType.error, error: message);
 
   /// 工厂方法：情绪事件
-  factory ChatEvent.emotion(String emotionLabel) => ChatEvent(
-        type: ChatEventType.emotion,
-        emotion: emotionLabel,
-      );
+  factory ChatEvent.emotion(String emotionLabel) =>
+      ChatEvent(type: ChatEventType.emotion, emotion: emotionLabel);
 
   /// 工厂方法：离线已保存事件（消息进发件箱，待联网同步）
-  factory ChatEvent.offlineSaved(String clientMsgId) => ChatEvent(
-        type: ChatEventType.offlineSaved,
-        clientMsgId: clientMsgId,
-      );
+  factory ChatEvent.offlineSaved(String clientMsgId) =>
+      ChatEvent(type: ChatEventType.offlineSaved, clientMsgId: clientMsgId);
 }
 
 /// 对话仓库接口

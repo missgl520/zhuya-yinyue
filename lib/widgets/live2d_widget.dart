@@ -39,11 +39,7 @@ class ZhuaLive2DWidget extends StatefulWidget {
   final Live2DViewController controller;
   final VoidCallback? onTap;
 
-  const ZhuaLive2DWidget({
-    super.key,
-    required this.controller,
-    this.onTap,
-  });
+  const ZhuaLive2DWidget({super.key, required this.controller, this.onTap});
 
   @override
   State<ZhuaLive2DWidget> createState() => _ZhuaLive2DWidgetState();
@@ -56,10 +52,7 @@ class _ZhuaLive2DWidgetState extends State<ZhuaLive2DWidget> {
   /// 处理单击：按位置分区触发反应
   void _handleSingleTap(TapUpDetails details) {
     final size = context.size ?? const Size(120, 200);
-    ZhuaLive2DController.instance.handleTouch(
-      details.localPosition,
-      size,
-    );
+    ZhuaLive2DController.instance.handleTouch(details.localPosition, size);
     widget.onTap?.call();
   }
 
@@ -157,8 +150,7 @@ class _StatusOverlay extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                color: Color(0xFFC0392B), size: 32),
+            const Icon(Icons.error_outline, color: Color(0xFFC0392B), size: 32),
             const SizedBox(height: 8),
             Text(
               '竹笌模型加载失败',
@@ -174,10 +166,7 @@ class _StatusOverlay extends StatelessWidget {
               child: Text(
                 state.lastError?.message ?? '未知错误',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFF6B9E78),
-                  fontSize: 11,
-                ),
+                style: const TextStyle(color: Color(0xFF6B9E78), fontSize: 11),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
