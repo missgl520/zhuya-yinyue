@@ -18,6 +18,8 @@ import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
+import '../../pages/discover/discover_page.dart';
+import '../../pages/profile/profile_page.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -90,6 +92,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/avatar',
         name: 'avatar',
         builder: (context, state) => const AvatarFullscreenPage(),
+      ),
+
+      // 首页 · 竹笌聊天唤醒陪伴（聊天页带 3D 竹笌角色）
+      GoRoute(
+        path: '/home',
+        name: 'home',
+        builder: (context, state) => const ChatPage(),
+      ),
+
+      // 发现页 · 竹林一角（图 2 场景：浅绿背景 + 装饰竹柱 + 左下角小竹笌吉祥物）
+      GoRoute(
+        path: '/discover',
+        name: 'discover',
+        builder: (context, state) => const DiscoverPage(),
+      ),
+
+      // 我的页（通用：设置 / 记忆 / 隐私等）
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (context, state) => const ProfilePage(),
       ),
     ],
   );

@@ -100,10 +100,10 @@ class _SplashPageState extends State<SplashPage>
     }
   }
 
-  /// 已同意后延时跳转到对话页
+  /// 已同意后延时跳转到竹芽首页
   void _scheduleNavigate() {
     Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) context.go('/chat');
+      if (mounted) context.go('/home');
     });
   }
 
@@ -117,7 +117,7 @@ class _SplashPageState extends State<SplashPage>
         _agreed = true;
         _consentVisible = false;
       });
-      context.go('/chat');
+      context.go('/home');
     }
   }
 
@@ -138,7 +138,7 @@ class _SplashPageState extends State<SplashPage>
       body: GestureDetector(
         onTap: () {
           if (_agreed) {
-            context.go('/chat');
+            context.go('/home');
           } else if (!_consentVisible) {
             // 已同意跳过；未同意则弹出全屏同意卡
             setState(() => _consentVisible = true);
