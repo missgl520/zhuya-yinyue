@@ -4,10 +4,12 @@
 # GET  /music/jobs/{job_id}  查询任务状态
 # GET  /music/audio/{filename} 获取生成的音频文件
 #
-# 当前实现：模拟生成流程（pending → running → done），
-# 后续可接入真实音乐生成 API（如 Suno / 自研模型）。
+# 真实生成：ace_music.generate()（ACE Music，密钥来自 .env）
+#   未配置 ACE_MUSIC_API_KEY → Mock 占位模式（sleep + 空文件）
+#   真实生成失败 → 自动降级 Mock，保证前端流程可用
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import asyncio
 import os
 import threading
 import time
@@ -15,45 +17,51 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, JSONResponse
 
+import ace_music
 import lyrics_store
 import music_store
 
 router = APIRouter(prefix="/music", tags=["music"])
 
 
-def _simulate_generation(job_id: str, user_id: str, title: str):
-    """后台线程：模拟音乐生成过程。
+def _run_generation(job_id: str, user_id: str, title: str, prompt: str, lyrics: str, style: str, duration: int):
+    """后台线程：生成音乐并落盘。
 
-    真实实现应替换为调用 Suno API / 自研音乐生成模型。
-    生成完成后将音频文件保存到 audio_dir，更新 job 状态，
-    并将歌曲加入 songs 库。
+    优先真实 ACE Music；未配置或失败则降级 Mock 占位。
     """
     try:
-        # 标记为运行中
         music_store.update_job_status(job_id, "running", user_id=user_id)
-        time.sleep(3)  # 模拟生成耗时
 
-        # 生成一个占位音频文件（真实实现应为实际音频）
         filename = f"{job_id}.wav"
         filepath = music_store.audio_path(filename)
-        # 创建一个空的占位文件（真实实现应写入实际音频数据）
-        with open(filepath, "wb") as f:
-            f.write(b"")  # 占位
+
+        used_real = False
+        if ace_music.is_configured():
+            try:
+                audio_bytes = asyncio.run(ace_music.generate(prompt, lyrics, duration, "zh"))
+                with open(filepath, "wb") as f:
+                    f.write(audio_bytes)
+                used_real = True
+            except Exception as e:  # 真实生成失败 → 降级 Mock
+                print(f"[music] ACE 真实生成失败, 降级 Mock: {e}")
+
+        if not used_real:
+            # Mock 占位：3 秒 + 空 wav
+            time.sleep(3)
+            with open(filepath, "wb") as f:
+                f.write(b"")
 
         audio_url = f"/music/audio/{filename}"
-        duration = 180.0  # 模拟3分钟
-
-        # 更新任务状态为完成
         music_store.update_job_status(
-            job_id, "done", audio_url=audio_url, duration=duration, user_id=user_id
+            job_id, "done", audio_url=audio_url, duration=float(duration), user_id=user_id
         )
-
-        # 自动加入歌曲库
         music_store.add_song(
             title=title or "未命名歌曲",
             audio_url=audio_url,
-            duration=duration,
+            duration=float(duration),
             user_id=user_id,
+            lyrics_id=None,
+            style=style,
         )
     except Exception as e:
         music_store.update_job_status(job_id, "failed", error=str(e), user_id=user_id)
@@ -67,12 +75,15 @@ async def music_generate(request: Request):
     lyrics_id = body.get("lyrics_id")
     style = body.get("style", "")
     title = body.get("title", "")
+    duration = int(body.get("duration", 180))
 
     # 如果指定了 lyrics_id，验证存在并提取标题
+    lyrics_text = ""
     if lyrics_id:
         lyric = lyrics_store.get(int(lyrics_id), user_id)
         if not lyric:
             return JSONResponse({"ok": False, "error": "歌词不存在"}, status_code=404)
+        lyrics_text = lyric.get("content", "") or ""
         if not title:
             title = lyric["title"]
 
@@ -81,9 +92,11 @@ async def music_generate(request: Request):
         prompt=prompt, lyrics_id=lyrics_id, style=style, user_id=user_id
     )
 
-    # 后台启动模拟生成（真实实现应改为调用真实 API）
+    # 后台启动生成（真实 ACE 或 Mock 降级）
     thread = threading.Thread(
-        target=_simulate_generation, args=(job_id, user_id, title), daemon=True
+        target=_run_generation,
+        args=(job_id, user_id, title, prompt, lyrics_text, style, duration),
+        daemon=True,
     )
     thread.start()
 
@@ -105,7 +118,6 @@ def music_audio(filename: str, request: Request):
 
     安全限制：filename 不得包含路径分隔符，防止目录遍历。
     """
-    # 安全检查：防止目录遍历
     if "/" in filename or "\\" in filename or ".." in filename:
         return JSONResponse({"ok": False, "error": "无效文件名"}, status_code=400)
 
