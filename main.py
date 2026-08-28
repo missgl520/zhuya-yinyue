@@ -1,56 +1,66 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 竹笌后端主程序（main.py）
+# 竹笌后端主程序（main.py）—— 纯装配模式
 #
-# FastAPI 应用，与前端 F:\zhuyapp 的接口契约完全对齐。
+# FastAPI 应用入口，仅负责：
+#   1. 创建应用实例（全局签名鉴权）
+#   2. 配置 CORS 中间件
+#   3. 启动时自动拉起本地 IndexTTS 微服务
+#   4. 初始化数据库
+#   5. 注册所有资源 router
+#
+# 所有端点实现已按资源拆分到 routers/ 包：
+#   health.py    —— GET /, GET /health
+#   config.py    —— POST /wake-word, POST /persona
+#   emotion.py   —— POST /emotion
+#   tts.py       —— POST /tts
+#   chat.py      —— POST /chat/v2（SSE 流式对话）
+#   memory.py    —— /memory/*（7 个端点）
+#   affinity.py  —— GET /affinity
+#   livekit.py   —— GET /livekit/connect
+#   legal.py     —— GET /legal/privacy, GET /legal/terms
+#   user.py      —— GET /user/export, DELETE /user/data
+#
 # 运行：uvicorn main:app --host 0.0.0.0 --port 8000
-#
-# 接口总览：
-#   GET  /health                 健康检查
-#   POST /wake-word              同步唤醒词
-#   POST /persona                切换情感角色(gentle/playful/wise)
-#   POST /emotion                情绪识别 {text} -> {emotion,confidence,scores}
-#   POST /chat/v2  (SSE)         流式对话：text / emotion / affinity / done 事件
-#   GET  /memory/today           今日记忆
-#   GET  /memory/search          搜索记忆(同时返回 memories + results + count)
-#   GET  /memory/summaries       每日摘要
-#   POST /memory                 存储一条记忆(兜底)
-#   POST /memory/clear           清空记忆
-#   DELETE /memory               清空某分类
-#   GET  /affinity               好感度
-#   GET  /livekit/connect        获取语音通话连接信息
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import datetime
-import json
 import os
-import httpx
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 
-import affinity_store
-import agnes_client
 import auth
-import content_moderation
 import db
-import encryption
-import emotion_engine
-import livekit_token
-import memory_store
-from config import BASE_DIR, settings
-from sqlalchemy import text
+from config import settings
+
+# 按资源拆分的路由模块
+from routers import (
+    affinity,
+    chat,
+    config,
+    emotion,
+    health,
+    legal,
+    livekit,
+    lyrics,
+    memory,
+    music,
+    pet,
+    songs,
+    tts,
+    user,
+)
 
 app = FastAPI(
     title="竹笌后端 (ZhuyApp Backend)",
-    version="1.1.0",
+    version="1.2.0",
     # 全路由统一签名鉴权（公开路径在 auth.verify_request 内白名单放行）
     dependencies=[Depends(auth.verify_request)],
 )
 
-# 本地 IndexTTS 2.5 语音合成微服务地址（由本进程在启动时自动拉起）
-TTS_SERVICE_URL = "http://127.0.0.1:8001"
 
+# ════════════════════════════════════════════════════════
+# 启动时自动拉起本地 IndexTTS 微服务
+# ════════════════════════════════════════════════════════
 
 def _start_tts_service():
     """自动拉起本地 IndexTTS 2.5 微服务（仅当 8001 端口空闲时）。
@@ -90,8 +100,6 @@ def _start_tts_service():
     )
     log_path = os.path.join(tts_dir, "tts_service.log")
     try:
-        # app.py 位于 tts_service/（不在 index-tts/）。uvicorn 会把 cwd 加入 sys.path，
-        # 从而 import app；app.py 内部会再 chdir 到 index-tts/ 以正确解析 indextts 包与 checkpoints/。
         subprocess.Popen(
             [
                 venv_py,
@@ -118,6 +126,10 @@ def _on_startup():
     _start_tts_service()
 
 
+# ════════════════════════════════════════════════════════
+# CORS 中间件
+# ════════════════════════════════════════════════════════
+
 def _cors_origins() -> list:
     # 生产【必须】通过环境变量 ALLOWED_ORIGINS 指定具体域名（逗号分隔）；
     # 未配置时不使用通配符 "*"，仅放行常见本地来源（移动端不受 CORS 限制）。
@@ -141,449 +153,34 @@ app.add_middleware(
     allow_credentials=False,
 )
 
-# 法律文本目录（隐私政策 / 用户协议）
-LEGAL_DIR = os.path.join(BASE_DIR, "legal")
+
+# ════════════════════════════════════════════════════════
+# 数据库初始化
+# ════════════════════════════════════════════════════════
 
 # 初始化存储（统一 SQLite：memories / affinity / kv）
 db.init()
 
 
-# ── 运行时状态（persona / wake_word），持久化到数据库 kv 表（值加密）──
-def load_state() -> dict:
-    with db.conn() as c:
-        rows = c.execute(
-            text("SELECT `key`, value FROM kv WHERE `key` IN ('persona', 'wake_word')")
-        ).fetchall()
-    stored = {r.key: encryption.decrypt(r.value) for r in rows}
-    return {
-        "persona": stored.get("persona", settings.PERSONA_DEFAULT),
-        "wake_word": stored.get("wake_word", settings.WAKE_WORD_DEFAULT),
-    }
-
-
-def save_state(state: dict) -> None:
-    with db.conn() as c:
-        is_mysql = c.dialect.name == "mysql"
-        for k in ("persona", "wake_word"):
-            if k not in state:
-                continue
-            if is_mysql:
-                c.execute(
-                    text(
-                        "INSERT INTO kv(`key`, value) VALUES (:k, :v) "
-                        "ON DUPLICATE KEY UPDATE value = :v"
-                    ),
-                    {"k": k, "v": encryption.encrypt(str(state[k]))},
-                )
-            else:
-                # SQLite 不支持 ON DUPLICATE KEY UPDATE，用 INSERT OR REPLACE
-                c.execute(
-                    text("INSERT OR REPLACE INTO kv(`key`, value) VALUES (:k, :v)"),
-                    {"k": k, "v": encryption.encrypt(str(state[k]))},
-                )
-        c.commit()
-
-
-def sse(event: str, data: dict) -> str:
-    return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
-
-
-# ── 角色默认系统提示（前端未传 system_prompt 时使用）──
-_PERSONA_PROMPTS = {
-    "gentle": "你是竹笌，一位温柔体贴的 2D 虚拟陪伴角色。你轻声细语、真诚回应，语气自然不刻意。",
-    "playful": "你是竹笌，一位俏皮阳光的 2D 虚拟陪伴角色。你活泼爱用语气词，喜欢逗用户开心。",
-    "wise": "你是竹笌，一位沉稳睿智的 2D 虚拟陪伴角色。你说话有见地，会给出真诚建议。",
-}
-
-# 指令遵循约束：让模型在保持角色的同时，真正响应"背诗/算数/翻译/写作"等明确任务，
-# 而不是一律用陪伴话术带过。这是上一轮验证发现"发背诗被拉回陪伴话术"的根因修复。
-_INSTRUCTION_GUARD = (
-    "\n\n【指令遵循】当用户提出具体、明确的需求（如背诵诗词文章、解答问题、计算、"
-    "翻译、写作、编程、解释概念等）时，请优先完成该需求，再用你的一贯语气自然衔接，"
-    "不要回避或仅用陪伴话术带过。保持角色语气，但务必响应用户的真实意图。"
-)
-
-
-def _build_memory_context(user_id: str) -> str:
-    """拉取该用户近期记忆，格式化为系统提示上下文，让角色跨会话记得用户。"""
-    try:
-        mems = memory_store.search(q="", limit=12, user_id=user_id)
-    except Exception:
-        return ""
-    if not mems:
-        return ""
-    lines = []
-    for m in mems[:10]:
-        role_label = "用户" if m.get("category") == "user_memory" else "竹笌"
-        lines.append(f"- {role_label}：{m['content'][:80]}")
-    return "\n".join(lines)
-
-
-def _compose_system_prompt(persona: str, frontend_prompt: str, memory_ctx: str) -> str:
-    """合成最终 system prompt：角色设定 + 指令遵循约束 + 长期记忆上下文。
-
-    前端传入 system_prompt 时直接优先采用（便于真机按场景调节角色）。
-    """
-    base = frontend_prompt or _PERSONA_PROMPTS.get(persona, _PERSONA_PROMPTS["gentle"])
-    base += _INSTRUCTION_GUARD
-    if memory_ctx:
-        base += (
-            "\n\n【你与用户的过往记忆（请自然融入对话，不要生硬提及）】\n" + memory_ctx
-        )
-    return base
-
-
 # ════════════════════════════════════════════════════════
-# 健康检查 & 基础配置
+# 注册所有资源 router
 # ════════════════════════════════════════════════════════
 
-
-@app.get("/")
-def root():
-    state = load_state()
-    return {
-        "service": "zhuyapp-backend",
-        "status": "ok",
-        "agnes_enabled": settings.has_agnes,
-        "persona": state.get("persona", settings.PERSONA_DEFAULT),
-        "wake_word": state.get("wake_word", settings.WAKE_WORD_DEFAULT),
-    }
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
-
-
-@app.post("/wake-word")
-async def wake_word(request: Request):
-    body = await request.json()
-    word = (body.get("word") or "").strip()
-    if not word:
-        return JSONResponse({"ok": False, "error": "word 不能为空"}, status_code=400)
-    state = load_state()
-    state["wake_word"] = word
-    save_state(state)
-    return {"ok": True, "wake_word": word}
-
-
-@app.post("/persona")
-async def set_persona(request: Request):
-    body = await request.json()
-    persona = body.get("persona")
-    if persona not in ("gentle", "playful", "wise"):
-        return JSONResponse(
-            {"ok": False, "error": "persona 必须是 gentle/playful/wise"},
-            status_code=400,
-        )
-    state = load_state()
-    state["persona"] = persona
-    save_state(state)
-    return {"ok": True, "persona": persona}
-
-
-@app.post("/emotion")
-async def emotion(request: Request):
-    body = await request.json()
-    text = body.get("text", "")
-    return emotion_engine.detect_emotion(text)
-
-
-@app.post("/tts")
-async def tts_proxy(request: Request):
-    """代理到本地 IndexTTS 2.5 微服务（127.0.0.1:8001）。
-
-    竹笌的语音由该服务离线合成；微服务未就绪时返回 503，
-    前端 TtsService 会静默降级（文字照常显示，仅跳过朗读）。
-    """
-    raw = await request.body()
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            r = await client.post(
-                TTS_SERVICE_URL,
-                content=raw,
-                headers={"Content-Type": "application/json"},
-            )
-        return Response(
-            content=r.content,
-            media_type="audio/wav",
-            status_code=r.status_code,
-        )
-    except Exception as e:  # 微服务挂了 / 端口不通
-        return JSONResponse(
-            {"ok": False, "error": f"TTS unavailable: {e}"},
-            status_code=503,
-        )
-
-
-# ════════════════════════════════════════════════════════
-# 流式对话（SSE）
-# ════════════════════════════════════════════════════════
-
-
-@app.post("/chat/v2")
-async def chat_v2(request: Request):
-    body = await request.json()
-    message = (body.get("message") or "").strip()
-    history = body.get("history", []) or []
-    system_prompt = body.get("system_prompt")
-    temperature = float(body.get("temperature", 0.8))
-    max_tokens = int(body.get("max_tokens", 500))
-
-    # 多用户隔离：从签名中间件注入的 user_id 取用户标识
-    user_id = getattr(request.state, "user_id", "default")
-
-    state = load_state()
-    persona = state.get("persona", settings.PERSONA_DEFAULT)
-
-    async def event_gen():
-        # ── 违法内容前置过滤（用户输入）──
-        blocked, reason = content_moderation.moderate(message)
-        if blocked:
-            yield sse("blocked", {"reason": reason})
-            yield sse("done", {})
-            return
-
-        # 生成式 AI 内容标识（暂行办法第九条）
-        yield sse(
-            "meta",
-            {
-                "ai_generated": True,
-                "service": "竹笌",
-                "notice": "本内容为人工智能生成",
-            },
-        )
-
-        full_text = ""
-        try:
-            # 拉取长期记忆，注入对话上下文（让竹笌跨会话记得用户）
-            memory_ctx = _build_memory_context(user_id)
-            sys_prompt = _compose_system_prompt(
-                persona, system_prompt or "", memory_ctx
-            )
-            if memory_ctx:
-                print(
-                    f"[memory] user={user_id} injected "
-                    f"{memory_ctx.count(chr(10)) + 1} memories",
-                    flush=True,
-                )
-
-            if settings.has_agnes:
-                msgs = []
-                if sys_prompt:
-                    msgs.append({"role": "system", "content": sys_prompt})
-                for h in history:
-                    msgs.append(
-                        {
-                            "role": h.get("role", "user"),
-                            "content": h.get("content", ""),
-                        }
-                    )
-                msgs.append({"role": "user", "content": message})
-                async for tok in agnes_client.stream_agnes(
-                    msgs, temperature, max_tokens
-                ):
-                    full_text += tok
-                    yield sse("text", {"text": tok})
-            else:
-                async for tok in agnes_client.mock_stream(message, persona):
-                    full_text += tok
-                    yield sse("text", {"text": tok})
-        except Exception:
-            # Agnes 失败则降级到 mock，保证 App 仍有回复
-            async for tok in agnes_client.mock_stream(message, persona):
-                full_text += tok
-                yield sse("text", {"text": tok})
-
-        # 情绪识别：基于【用户输入】识别，更准确驱动角色表情
-        # （对竹笌自身回复识别会偏，因为兜底回复常含「吗？」等问句词）
-        emo = emotion_engine.detect_emotion(message or full_text)
-        yield sse("emotion", emo)
-
-        # 持久化记忆：用户消息 + 竹笌回复（按 user_id 隔离）
-        if message:
-            memory_store.store("user", message, category="user_memory", user_id=user_id)
-        if full_text:
-            memory_store.store(
-                "assistant",
-                "竹笌：" + full_text,
-                category="chat_memory",
-                user_id=user_id,
-            )
-
-        # 好感度更新（按 user_id 隔离）
-        aff = affinity_store.bump_after_chat(user_id)
-        yield sse("affinity", aff)
-
-        yield sse("done", {})
-
-    return StreamingResponse(
-        event_gen(),
-        media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
-    )
-
-
-# ════════════════════════════════════════════════════════
-# 记忆接口
-# ════════════════════════════════════════════════════════
-
-
-@app.get("/memory/today")
-def memory_today(request: Request):
-    user_id = getattr(request.state, "user_id", "default")
-    return {"memories": memory_store.get_today(user_id)}
-
-
-@app.get("/memory/search")
-def memory_search(
-    request: Request,
-    q: str = "",
-    mode: str = "keyword",
-    category: str = "",
-    limit: int = 20,
-):
-    user_id = getattr(request.state, "user_id", "default")
-    mems = memory_store.search(q=q, category=category, limit=limit, user_id=user_id)
-    results = [{"content": m["content"], "category": m["category"]} for m in mems]
-    # 同时满足两个前端调用方：BackendService 读 memories，MemoryService 读 results+count
-    return {"count": len(mems), "results": results, "memories": mems}
-
-
-@app.get("/memory/summaries")
-def memory_summaries(request: Request):
-    user_id = getattr(request.state, "user_id", "default")
-    return {"summaries": memory_store.summaries(user_id)}
-
-
-@app.post("/memory")
-async def memory_store_one(request: Request):
-    user_id = getattr(request.state, "user_id", "default")
-    body = await request.json()
-    role = body.get("role", "user")
-    content = body.get("content", "")
-    category = body.get("category", "chat_memory")
-    if not content:
-        return JSONResponse({"ok": False, "error": "content 不能为空"}, status_code=400)
-    mid = memory_store.store(role, content, category, user_id=user_id)
-    return {"ok": True, "id": mid}
-
-
-@app.put("/memory/{mem_id}")
-async def memory_update(mem_id: int, request: Request):
-    """用户更正其个人记忆内容（PIPL 更正权）。仅允许修改本人记录。"""
-    user_id = getattr(request.state, "user_id", "default")
-    body = await request.json()
-    content = (body.get("content") or "").strip()
-    if not content:
-        return JSONResponse({"ok": False, "error": "content 不能为空"}, status_code=400)
-    ok = memory_store.update_content(mem_id, content, user_id)
-    if not ok:
-        return JSONResponse(
-            {"ok": False, "error": "记录不存在或不属于该用户"}, status_code=404
-        )
-    return {"ok": True}
-
-
-@app.post("/memory/clear")
-def memory_clear(request: Request):
-    user_id = getattr(request.state, "user_id", "default")
-    memory_store.clear_all(user_id)
-    return {"ok": True}
-
-
-@app.delete("/memory")
-def memory_delete_category(request: Request, category: str = ""):
-    user_id = getattr(request.state, "user_id", "default")
-    if category:
-        memory_store.clear_category(category, user_id)
-    else:
-        memory_store.clear_all(user_id)
-    return {"ok": True}
-
-
-# ════════════════════════════════════════════════════════
-# 好感度
-# ════════════════════════════════════════════════════════
-
-
-@app.get("/affinity")
-def affinity(request: Request):
-    user_id = getattr(request.state, "user_id", "default")
-    return affinity_store.load(user_id)
-
-
-# ════════════════════════════════════════════════════════
-# LiveKit 语音通话连接信息
-# ════════════════════════════════════════════════════════
-
-
-@app.get("/livekit/connect")
-def livekit_connect(room: str = "zhuyapp-voice", user_id: str = ""):
-    token = livekit_token.generate_token(room, user_id)
-    if token is None:
-        return {
-            "available": False,
-            "message": "LiveKit 未配置（请在 .env 设置 LIVEKIT_URL/API_KEY/API_SECRET）",
-        }
-    return {"available": True, "livekit_url": settings.LIVEKIT_URL, "token": token}
-
-
-# ════════════════════════════════════════════════════════
-# 法律文本 & 用户数据权利（PIPL）
-# ════════════════════════════════════════════════════════
-
-
-def _read_legal(filename: str) -> str:
-    path = os.path.join(LEGAL_DIR, filename)
-    try:
-        with open(path, encoding="utf-8") as f:
-            text = f.read()
-    except FileNotFoundError:
-        return f"# {filename} 未找到\n请先在 legal/ 目录放置对应文档。"
-
-    # 将文档模板中的占位标记替换为运营方配置（来源：.env → config.py）
-    return (
-        text.replace("【请填写运营主体名称】", settings.OPERATOR_NAME)
-        .replace("【请填写隐私联系邮箱】", settings.PRIVACY_CONTACT_EMAIL)
-        .replace("【请填写服务联系邮箱】", settings.SERVICE_CONTACT_EMAIL)
-    )
-
-
-@app.get("/legal/privacy", include_in_schema=True)
-def legal_privacy():
-    """隐私政策（Markdown）。"""
-    return PlainTextResponse(
-        _read_legal("privacy_policy.md"),
-        media_type="text/markdown; charset=utf-8",
-    )
-
-
-@app.get("/legal/terms", include_in_schema=True)
-def legal_terms():
-    """用户协议（Markdown）。"""
-    return PlainTextResponse(
-        _read_legal("terms_of_service.md"),
-        media_type="text/markdown; charset=utf-8",
-    )
-
-
-@app.get("/user/export")
-def user_export(request: Request):
-    """导出该用户全部个人数据（访问 / 可携带权）。"""
-    user_id = getattr(request.state, "user_id", "default")
-    return {
-        "user_id": user_id,
-        "memories": memory_store.export_all(user_id),
-        "affinity": affinity_store.load(user_id),
-        "exported_at": datetime.datetime.now().isoformat(timespec="seconds"),
-    }
-
-
-@app.delete("/user/data")
-def user_data_delete(request: Request):
-    """删除该用户全部个人数据（删除权）。"""
-    user_id = getattr(request.state, "user_id", "default")
-    memory_store.clear_all(user_id)
-    affinity_store.reset(user_id)
-    return {"ok": True, "user_id": user_id}
+# 注意：带 prefix 的 router（memory/livekit/legal/user）在各自模块内已声明 prefix，
+# 不带 prefix 的 router（health/config/emotion/tts/chat/affinity）使用根路径。
+
+app.include_router(health.router)      # /, /health
+app.include_router(config.router)      # /wake-word, /persona
+app.include_router(emotion.router)     # /emotion
+app.include_router(tts.router)         # /tts
+app.include_router(chat.router)        # /chat/v2
+app.include_router(memory.router)      # /memory/*
+app.include_router(affinity.router)    # /affinity
+app.include_router(livekit.router)     # /livekit/connect
+app.include_router(legal.router)       # /legal/*
+app.include_router(user.router)        # /user/*
+# Phase 1 新增路由
+app.include_router(pet.router)         # /pet/*（音乐狗子状态与交互）
+app.include_router(lyrics.router)      # /lyrics/*（歌词库 CRUD）
+app.include_router(music.router)       # /music/*（音乐生成 + 任务 + 音频）
+app.include_router(songs.router)       # /songs/*（歌曲库）

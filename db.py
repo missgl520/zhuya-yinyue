@@ -85,6 +85,65 @@ kv_t = Table(
     Column("value", Text, nullable=False),
 )
 
+# ── Phase 1 新增表：音乐狗子 × 音乐创作 ──
+
+# 音乐狗子状态（每用户一条，JSON blob 存完整状态）
+pet_state_t = Table(
+    "pet_state",
+    _metadata,
+    Column("user_id", String(128), primary_key=True),
+    Column("data", Text, nullable=False),  # 加密 JSON：mood/energy/bond/inventory/last_interaction
+    Column("updated_at", String(32), nullable=False),
+)
+
+# 歌词库（用户创作的歌词，可被音乐生成引用）
+lyrics_t = Table(
+    "lyrics",
+    _metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("title", String(256), nullable=False),
+    Column("content", Text, nullable=False),  # 完整歌词文本
+    Column("tags", Text, nullable=True),       # JSON 数组字符串
+    Column("mood", String(64), nullable=True), # 情绪标签
+    Column("created_at", String(32), nullable=False),
+    Column("updated_at", String(32), nullable=False),
+    Column("user_id", String(128), nullable=False, server_default="default"),
+)
+
+# 音乐生成任务（异步任务状态追踪）
+music_jobs_t = Table(
+    "music_jobs",
+    _metadata,
+    Column("job_id", String(64), primary_key=True),
+    Column("status", String(32), nullable=False, server_default="pending"),  # pending/running/done/failed
+    Column("prompt", Text, nullable=True),
+    Column("lyrics_id", Integer, nullable=True),
+    Column("style", String(128), nullable=True),
+    Column("audio_url", String(512), nullable=True),
+    Column("duration", Float, nullable=True),
+    Column("error", Text, nullable=True),
+    Column("created_at", String(32), nullable=False),
+    Column("completed_at", String(32), nullable=True),
+    Column("user_id", String(128), nullable=False, server_default="default"),
+)
+
+# 歌曲库（已生成/收藏的歌曲）
+songs_t = Table(
+    "songs",
+    _metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("title", String(256), nullable=False),
+    Column("audio_url", String(512), nullable=False),
+    Column("cover_url", String(512), nullable=True),
+    Column("duration", Float, nullable=True),
+    Column("lyrics_id", Integer, nullable=True),
+    Column("style", String(128), nullable=True),
+    Column("play_count", Integer, nullable=False, server_default="0"),
+    Column("is_favorite", Integer, nullable=False, server_default="0"),  # 0/1 布尔
+    Column("created_at", String(32), nullable=False),
+    Column("user_id", String(128), nullable=False, server_default="default"),
+)
+
 
 def _is_mysql(conn: Connection) -> bool:
     return conn.dialect.name == "mysql"
