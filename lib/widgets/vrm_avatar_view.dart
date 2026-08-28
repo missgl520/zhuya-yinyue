@@ -27,6 +27,9 @@ const bool kUseVrmAvatar = true;
 /// 程序化生成的竹笌 3D 少年人形（脚本生成，分部位配色 + 走路动画）。
 const String kUserAvatarAsset = 'assets/vrm_test/zhuyu_avatar.glb';
 
+/// 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）。
+const String kDogAvatarAsset = 'assets/vrm_test/dog_avatar.glb';
+
 /// 占位角色（用户还没放动漫角色时用，避免灰色测试人偶太违和可换 Fox 等）。
 const String kFallbackAvatarAsset = 'assets/vrm_test/CesiumMan.glb';
 
@@ -37,7 +40,29 @@ const String kCameraTarget = '0m 0.85m 0m';
 const String kFieldOfView = '32deg';
 
 class VrmAvatarView extends StatefulWidget {
-  const VrmAvatarView({super.key});
+  const VrmAvatarView({
+    super.key,
+    this.asset = kUserAvatarAsset,
+    this.cameraOrbit = kCameraOrbit,
+    this.cameraTarget = kCameraTarget,
+    this.fieldOfView = kFieldOfView,
+    this.displayScale = 1.0,
+  });
+
+  /// 指定使用哪个 3D 模型资产，默认用竹笌少年人形；传 kDogAvatarAsset 用音乐狗子。
+  final String asset;
+
+  /// 相机轨道（方位角 仰角 距离），如 '0deg 60deg 5m'。
+  final String cameraOrbit;
+
+  /// 相机目标点（模型中心位置），如 '0m 0.85m 0m'。
+  final String cameraTarget;
+
+  /// 视野角度，如 '32deg'。
+  final String fieldOfView;
+
+  /// 显示缩放，直接控制模型在屏幕上的大小（1.0=原始大小，0.5=缩小一半）。
+  final double displayScale;
 
   @override
   State<VrmAvatarView> createState() => _VrmAvatarViewState();
@@ -52,30 +77,33 @@ class _VrmAvatarViewState extends State<VrmAvatarView> {
     _resolveAsset();
   }
 
-  /// 优先用用户动漫角色，找不到（未下载/未进 pubspec）就回退占位。
+  /// 优先用指定资产，找不到就回退占位。
   Future<void> _resolveAsset() async {
     try {
-      await rootBundle.load(kUserAvatarAsset);
-      if (mounted) setState(() => _src = kUserAvatarAsset);
+      await rootBundle.load(widget.asset);
+      if (mounted) setState(() => _src = widget.asset);
     } catch (_) {
-      // 用户还没放动漫角色 → 保持占位 CesiumMan（不崩）
+      // 指定资产不存在 → 保持占位 CesiumMan（不崩）
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return ModelViewer(
-      src: _src,
-      alt: '竹笌 3D 角色',
-      // 自动播放模型内嵌的第一个动画剪辑（走路）
-      autoPlay: true,
-      // 用户可拖动旋转模型 = 触摸角色有反馈（解决之前"点人物没反应"）
-      cameraControls: true,
-      cameraOrbit: kCameraOrbit,
-      cameraTarget: kCameraTarget,
-      fieldOfView: kFieldOfView,
-      // 与 Live2D 默认底色一致，人物漂移时背景无缝衔接
-      backgroundColor: const Color(0xFFEDF7F0),
+    return Transform.scale(
+      scale: widget.displayScale,
+      child: ModelViewer(
+        src: _src,
+        alt: '3D 角色',
+        // 自动播放模型内嵌的第一个动画剪辑（走路）
+        autoPlay: true,
+        // 用户可拖动旋转模型 = 触摸角色有反馈（解决之前"点人物没反应"）
+        cameraControls: true,
+        cameraOrbit: widget.cameraOrbit,
+        cameraTarget: widget.cameraTarget,
+        fieldOfView: widget.fieldOfView,
+        // 完全透明背景，小狗周围没有方框
+        backgroundColor: Colors.transparent,
+      ),
     );
   }
 }

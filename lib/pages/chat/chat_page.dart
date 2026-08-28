@@ -363,10 +363,10 @@ class _ChatPageState extends ConsumerState<ChatPage>
           const Spacer(),
           _buildStatusBadge(),
           const SizedBox(width: 12),
-          // 3D 角色入口（二级程序：进入独立全屏 3D 角色页）
+          // 音乐狗子入口（Phase 1 新增：宠物状态 + 音乐创作）
           GestureDetector(
-            onTap: () => context.push('/avatar'),
-            child: const _TopIcon(icon: Icons.view_in_ar_outlined),
+            onTap: () => context.push('/pet'),
+            child: const _TopIcon(icon: Icons.pets),
           ),
           const SizedBox(width: 12),
           // 设置按钮

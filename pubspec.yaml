@@ -19,7 +19,7 @@ dependencies:
   # Flutter SDK 本身
   flutter:
     sdk: flutter
-  # iOS 风格图标库
+  # iOS 风格图标库（保留兼容，新代码统一用 AppIcon 门面）
   cupertino_icons: ^1.0.8
 
   # ═══════════════════════════════════════════════════════
@@ -153,6 +153,8 @@ flutter:
     - assets/vrm_test/CesiumMan.glb
     # 程序化生成的竹笌 3D 少年人形（脚本生成，分部位配色 + 走路动画）
     - assets/vrm_test/zhuyu_avatar.glb
+    # 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）
+    - assets/vrm_test/dog_avatar.glb
 
 # ═══════════════════════════════════════════════════════
 # 依赖覆盖：model_viewer_plus 本地补丁副本

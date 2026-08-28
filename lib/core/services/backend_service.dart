@@ -223,6 +223,176 @@ class BackendService {
       return null;
     }
   }
+
+  // ════════════════════════════════════════════════════════
+  // Phase 1：音乐狗子状态与交互
+  // ════════════════════════════════════════════════════════
+
+  /// 获取音乐狗子当前状态
+  Future<Map<String, dynamic>> getPetState() async {
+    try {
+      final resp = await _dio.get('/pet/state');
+      return resp.data as Map<String, dynamic>;
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// 与音乐狗子交互（feed/play/pet/talk/sleep）
+  Future<Map<String, dynamic>> petInteract(String action) async {
+    try {
+      final resp = await _dio.post('/pet/interact', data: {'action': action});
+      final data = resp.data as Map<String, dynamic>;
+      return data['state'] as Map<String, dynamic>? ?? {};
+    } catch (_) {
+      return {};
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // Phase 1：歌词库 CRUD
+  // ════════════════════════════════════════════════════════
+
+  /// 获取歌词列表
+  Future<List<Map<String, dynamic>>> listLyrics({int limit = 50, int offset = 0}) async {
+    try {
+      final resp = await _dio.get('/lyrics', queryParameters: {'limit': limit, 'offset': offset});
+      final data = resp.data as Map<String, dynamic>;
+      return List<Map<String, dynamic>>.from(data['items'] ?? []);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// 获取单条歌词
+  Future<Map<String, dynamic>?> getLyrics(int id) async {
+    try {
+      final resp = await _dio.get('/lyrics/$id');
+      return resp.data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 创建歌词
+  Future<int?> createLyrics({required String title, required String content, List<String>? tags, String? mood}) async {
+    try {
+      final resp = await _dio.post('/lyrics', data: {
+        'title': title,
+        'content': content,
+        'tags': tags ?? [],
+        'mood': mood ?? '',
+      });
+      final data = resp.data as Map<String, dynamic>;
+      return data['id'] as int?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 更新歌词
+  Future<bool> updateLyrics(int id, {String? title, String? content, List<String>? tags, String? mood}) async {
+    try {
+      final resp = await _dio.put('/lyrics/$id', data: {
+        if (title != null) 'title': title,
+        if (content != null) 'content': content,
+        if (tags != null) 'tags': tags,
+        if (mood != null) 'mood': mood,
+      });
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 删除歌词
+  Future<bool> deleteLyrics(int id) async {
+    try {
+      final resp = await _dio.delete('/lyrics/$id');
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // Phase 1：音乐生成
+  // ════════════════════════════════════════════════════════
+
+  /// 发起音乐生成（异步任务）
+  Future<String?> generateMusic({String prompt = '', int? lyricsId, String style = '', String title = ''}) async {
+    try {
+      final resp = await _dio.post('/music/generate', data: {
+        'prompt': prompt,
+        if (lyricsId != null) 'lyrics_id': lyricsId,
+        'style': style,
+        'title': title,
+      });
+      final data = resp.data as Map<String, dynamic>;
+      return data['job_id'] as String?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 查询音乐生成任务状态
+  Future<Map<String, dynamic>?> getMusicJob(String jobId) async {
+    try {
+      final resp = await _dio.get('/music/jobs/$jobId');
+      return resp.data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════
+  // Phase 1：歌曲库
+  // ════════════════════════════════════════════════════════
+
+  /// 获取歌曲列表
+  Future<List<Map<String, dynamic>>> listSongs({int limit = 50, int offset = 0, bool favoriteOnly = false}) async {
+    try {
+      final resp = await _dio.get('/songs', queryParameters: {
+        'limit': limit,
+        'offset': offset,
+        if (favoriteOnly) 'favorite': true,
+      });
+      final data = resp.data as Map<String, dynamic>;
+      return List<Map<String, dynamic>>.from(data['items'] ?? []);
+    } catch (_) {
+      return [];
+    }
+  }
+
+  /// 切换歌曲收藏状态
+  Future<bool> toggleSongFavorite(int songId) async {
+    try {
+      final resp = await _dio.post('/songs/$songId/favorite');
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 记录歌曲播放
+  Future<bool> recordSongPlay(int songId) async {
+    try {
+      final resp = await _dio.post('/songs/$songId/play');
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// 删除歌曲
+  Future<bool> deleteSong(int songId) async {
+    try {
+      final resp = await _dio.delete('/songs/$songId');
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 /// 好感度数据（BackendService 内部用）

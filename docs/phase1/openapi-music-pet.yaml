@@ -1,0 +1,575 @@
+openapi: 3.0.3
+info:
+  title: 竹笌 × 音乐狗子 - 宠物与音乐创作 API
+  version: 1.0.0
+  description: >
+    本文件只覆盖本次合并新增与变更的端点，不重复描述竹笌后端已有的 22 个存量端点。
+    全部端点走 app 级签名鉴权（auth.verify_request）。
+    用户标识一律从 X-User-Id 头注入 request.state.user_id，路径中禁止出现 user_id。
+
+servers:
+  - url: http://127.0.0.1:8000
+    description: 本地开发（ZHUYU_API_KEY 为空时进入开发模式，不强制签名）
+  - url: https://{host}
+    description: 生产
+    variables:
+      host:
+        default: example.com
+
+components:
+  securitySchemes:
+    ZhuyuSignature:
+      type: apiKey
+      in: header
+      name: X-Signature
+      description: >
+        HMAC-SHA256 请求签名。canonical 串为
+        METHOD\nPATH\nX-Timestamp\nX-Nonce\nSHA256(BODY)，
+        密钥为服务端 ZHUYU_API_KEY。须同时携带 X-Api-Key、X-Timestamp、X-Nonce、X-User-Id。
+
+  parameters:
+    XApiKey:
+      name: X-Api-Key
+      in: header
+      required: true
+      schema: { type: string }
+    XTimestamp:
+      name: X-Timestamp
+      in: header
+      required: true
+      schema: { type: string, description: Unix 秒级时间戳，容差 300 秒 }
+    XNonce:
+      name: X-Nonce
+      in: header
+      required: true
+      schema: { type: string, description: 一次性随机串，防重放 }
+    XUserId:
+      name: X-User-Id
+      in: header
+      required: true
+      schema: { type: string, maxLength: 128 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, default: 20, minimum: 1, maximum: 100 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, default: 0, minimum: 0 }
+
+  schemas:
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail: { type: string, description: 人类可读错误描述（FastAPI HTTPException 默认形态） }
+
+    Affinity:
+      type: object
+      description: 竹笌既有五维好感度，宠物互动写入此体系
+      properties:
+        trust: { type: number, format: float }
+        intimacy: { type: number, format: float }
+        familiarity: { type: number, format: float }
+        total_interactions: { type: integer }
+        streak_days: { type: integer }
+
+    PetMood:
+      type: string
+      enum: [happy, excited, sleepy, hungry, confused, angry]
+
+    PetState:
+      type: object
+      required: [mood, total_barks, songs_created]
+      properties:
+        mood: { $ref: '#/components/schemas/PetMood' }
+        total_barks: { type: integer }
+        songs_created: { type: integer }
+        last_song_title: { type: string, nullable: true, maxLength: 64 }
+        affinity: { $ref: '#/components/schemas/Affinity' }
+
+    PetInteractRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [pet, feed, shake, bark]
+          description: pet 加 intimacy / feed 加 trust / shake 与 bark 加 familiarity
+
+    PetInteractResponse:
+      type: object
+      required: [dialogue, mood, affinity]
+      properties:
+        dialogue: { type: string, description: 狗子台词，纯文本，不含 emoji }
+        mood: { $ref: '#/components/schemas/PetMood' }
+        affinity_delta:
+          type: object
+          additionalProperties: { type: number, format: float }
+        affinity: { $ref: '#/components/schemas/Affinity' }
+
+    LyricsStyle:
+      type: string
+      enum: [民谣, 流行, DJ电音, 国风, 说唱]
+      description: 传入枚举外的值回落为「流行」
+
+    LyricsCreateRequest:
+      type: object
+      required: [theme, style, mood]
+      properties:
+        theme: { type: string, minLength: 1, maxLength: 128 }
+        style: { $ref: '#/components/schemas/LyricsStyle' }
+        mood: { type: string, maxLength: 32 }
+        additional: { type: string, maxLength: 500, nullable: true }
+        user_mood: { type: string, maxLength: 32, nullable: true, description: 用户当前情绪，影响狗子开场语 }
+
+    Lyrics:
+      type: object
+      required: [id, title, lyrics, theme, style, mood, created_at]
+      properties:
+        id: { type: string, maxLength: 36 }
+        title: { type: string, maxLength: 128 }
+        lyrics: { type: string, description: 服务端落盘时字段加密，出参已解密 }
+        note: { type: string, description: 创作手记 }
+        tags:
+          type: array
+          items: { type: string }
+        theme: { type: string }
+        style: { $ref: '#/components/schemas/LyricsStyle' }
+        mood: { type: string }
+        pet_reaction: { type: string, description: 狗子反应文案，纯文本 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    LyricsPatchRequest:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, maxLength: 128 }
+        tags:
+          type: array
+          items: { type: string, maxLength: 32 }
+          maxItems: 10
+
+    LyricsPage:
+      type: object
+      required: [items, total, limit, offset, has_more]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Lyrics' }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        has_more: { type: boolean }
+
+    MusicGenerateRequest:
+      type: object
+      required: [prompt]
+      description: lyric_id 与 lyrics 二者必填其一；同时给出时以 lyric_id 为准
+      properties:
+        lyric_id: { type: string, maxLength: 36, nullable: true }
+        lyrics: { type: string, maxLength: 4000, nullable: true }
+        prompt: { type: string, minLength: 1, maxLength: 500, description: 音乐风格描述 }
+        duration: { type: integer, default: 30, minimum: 10, maximum: 120 }
+        language: { type: string, default: zh, enum: [zh, en] }
+
+    MusicJobStatus:
+      type: string
+      enum: [queued, running, succeeded, failed, cancelled]
+
+    MusicJobAccepted:
+      type: object
+      required: [job_id, status, poll_after_ms]
+      properties:
+        job_id: { type: string, maxLength: 36 }
+        status: { $ref: '#/components/schemas/MusicJobStatus' }
+        poll_after_ms:
+          type: integer
+          default: 5000
+          description: 首次轮询前的建议等待毫秒。实测生成耗时约 48 秒，更早轮询无意义
+
+    Song:
+      type: object
+      required: [id, title, audio_url, duration_sec, created_at]
+      properties:
+        id: { type: string, maxLength: 36 }
+        title: { type: string, maxLength: 128 }
+        audio_url:
+          type: string
+          description: >
+            形如 /music/audio/<sha1>.mp3 的常规 HTTP 路径。
+            服务端已把上游返回的 base64 data URI 解码落盘，
+            绝不向客户端下发 data: scheme（播放器无法可靠播放）。
+        duration_sec: { type: integer }
+        audio_bytes: { type: integer }
+        lyric_id: { type: string, nullable: true }
+        job_id: { type: string, nullable: true }
+        prompt: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+
+    MusicJob:
+      type: object
+      required: [job_id, status, progress]
+      properties:
+        job_id: { type: string, maxLength: 36 }
+        status: { $ref: '#/components/schemas/MusicJobStatus' }
+        progress: { type: number, format: float, minimum: 0, maximum: 1 }
+        song:
+          allOf: [{ $ref: '#/components/schemas/Song' }]
+          nullable: true
+          description: 仅 status=succeeded 时存在
+        error: { type: string, nullable: true, maxLength: 255 }
+        attempt: { type: integer }
+        created_at: { type: string, format: date-time }
+        finished_at: { type: string, format: date-time, nullable: true }
+
+    SongPage:
+      type: object
+      required: [items, total, limit, offset, has_more]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Song' }
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        has_more: { type: boolean }
+
+    OkResponse:
+      type: object
+      required: [ok, id]
+      properties:
+        ok: { type: boolean }
+        id: { type: string }
+
+security:
+  - ZhuyuSignature: []
+
+paths:
+  /pet/state:
+    get:
+      operationId: getPetState
+      summary: 读取当前用户的宠物状态
+      tags: [pet]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PetState' }
+        '401':
+          description: 签名失败 / 过期 / 重放
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /pet/interact:
+    post:
+      operationId: interactPet
+      summary: 宠物互动
+      description: action 放在 body 而非 query，因签名串包含 SHA256(BODY)，query 参数不参与签名会留下篡改面
+      tags: [pet]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PetInteractRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PetInteractResponse' }
+        '400':
+          description: action 非法
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /lyrics:
+    post:
+      operationId: createLyrics
+      summary: 生成并保存歌词
+      tags: [lyrics]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LyricsCreateRequest' }
+      responses:
+        '201':
+          description: 创建成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lyrics' }
+        '403':
+          description: 内容过滤拦截
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: LLM 上游失败。明确报错，不回落模板假歌词
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    get:
+      operationId: listLyrics
+      summary: 歌词列表
+      description: 歌词正文字段加密存储，因此不支持内容全文检索，只按 theme / style / 时间倒序筛选
+      tags: [lyrics]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+        - name: theme
+          in: query
+          schema: { type: string }
+        - name: style
+          in: query
+          schema: { $ref: '#/components/schemas/LyricsStyle' }
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LyricsPage' }
+
+  /lyrics/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 36 }
+      - $ref: '#/components/parameters/XApiKey'
+      - $ref: '#/components/parameters/XTimestamp'
+      - $ref: '#/components/parameters/XNonce'
+      - $ref: '#/components/parameters/XUserId'
+    get:
+      operationId: getLyrics
+      summary: 歌词详情
+      tags: [lyrics]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lyrics' }
+        '404':
+          description: 不存在或不属于当前用户
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    patch:
+      operationId: patchLyrics
+      summary: 修改标题或标签
+      tags: [lyrics]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LyricsPatchRequest' }
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Lyrics' }
+        '404':
+          description: 不存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      operationId: deleteLyrics
+      summary: 软删除歌词（置 deleted_at）
+      tags: [lyrics]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '404':
+          description: 不存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /music/generate:
+    post:
+      operationId: generateMusic
+      summary: 提交音乐生成任务（异步）
+      description: >
+        实测上游生成 30 秒歌曲耗时约 48 秒、响应体约 641 KB，
+        因此不做同步返回。服务端立即返回 202 + job_id，客户端轮询 /music/jobs/{job_id}。
+        同参数（sha1 of lyrics+prompt+duration）命中已有作品时直接返回既有 song。
+      tags: [music]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MusicGenerateRequest' }
+      responses:
+        '202':
+          description: 已入队
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MusicJobAccepted' }
+        '400':
+          description: lyric_id 与 lyrics 均缺失，或 duration 越界
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: 内容过滤拦截
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: 单用户已有 running 任务，或已达日调用上限
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: ACE_MUSIC_API_KEY 未配置。不静默降级为假数据
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /music/jobs/{job_id}:
+    parameters:
+      - name: job_id
+        in: path
+        required: true
+        schema: { type: string, maxLength: 36 }
+      - $ref: '#/components/parameters/XApiKey'
+      - $ref: '#/components/parameters/XTimestamp'
+      - $ref: '#/components/parameters/XNonce'
+      - $ref: '#/components/parameters/XUserId'
+    get:
+      operationId: getMusicJob
+      summary: 查询任务状态
+      description: 建议轮询间隔 3 秒起，指数退避至 8 秒上限；客户端总放弃阈值 240 秒（放弃后任务仍在服务端完成）
+      tags: [music]
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MusicJob' }
+        '404':
+          description: 任务不存在或不属于当前用户
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      operationId: cancelMusicJob
+      summary: 取消排队中的任务
+      tags: [music]
+      responses:
+        '200':
+          description: 已取消
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '400':
+          description: 任务已在 running 或已终态，无法取消
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /music/audio/{filename}:
+    get:
+      operationId: getMusicAudio
+      summary: 获取音频文件
+      description: 文件落盘于 settings.DATA_DIR/audio（F 盘），文件名为 <sha1>.mp3
+      tags: [music]
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema: { type: string, pattern: '^[0-9a-f]{40}\.mp3$' }
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      responses:
+        '200':
+          description: 音频二进制
+          content:
+            audio/mpeg:
+              schema: { type: string, format: binary }
+        '404':
+          description: 文件不存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /songs:
+    get:
+      operationId: listSongs
+      summary: 作品列表
+      tags: [music]
+      parameters:
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SongPage' }
+
+  /songs/{id}:
+    delete:
+      operationId: deleteSong
+      summary: 软删除作品；若磁盘音频无其他引用则一并删除
+      tags: [music]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, maxLength: 36 }
+        - $ref: '#/components/parameters/XApiKey'
+        - $ref: '#/components/parameters/XTimestamp'
+        - $ref: '#/components/parameters/XNonce'
+        - $ref: '#/components/parameters/XUserId'
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OkResponse' }
+        '404':
+          description: 不存在
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }

@@ -1,0 +1,78 @@
+{
+  "color": {
+    "bg":            { "value": "#F1F6EE", "type": "color", "layer": "A1", "dark": "#0E1512" },
+    "surface":       { "value": "#FFFFFF", "type": "color", "layer": "A1", "dark": "#16201B" },
+    "surface-warm":  { "value": "#FBF4E9", "type": "color", "layer": "B",  "dark": "#1E1A14" },
+    "surface-sunken":{ "value": "#E9F0E5", "type": "color", "layer": "B",  "dark": "#0A0F0D" },
+    "fg":            { "value": "#1E2B1E", "type": "color", "layer": "A1", "dark": "#E8F0E4" },
+    "fg-2":          { "value": "#44563F", "type": "color", "layer": "B",  "dark": "#B6C4AE" },
+    "muted":         { "value": "#6E7C68", "type": "color", "layer": "A1", "dark": "#859384" },
+    "meta":          { "value": "#9AA89A", "type": "color", "layer": "B",  "dark": "#5C685C" },
+    "border":        { "value": "#DDE6D8", "type": "color", "layer": "A1", "dark": "#253029" },
+    "border-soft":   { "value": "#EAF0E7", "type": "color", "layer": "B",  "dark": "#1C251F" },
+    "accent":        { "value": "#7CB342", "type": "color", "layer": "A1", "dark": "#8BD14F" },
+    "accent-deep":   { "value": "#4E7C2A", "type": "color", "layer": "A2", "dark": "#5E9E2E" },
+    "accent-soft":   { "value": "#E8F3DE", "type": "color", "layer": "C",  "dark": "#1C2A17" },
+    "sun":           { "value": "#F2A33C", "type": "color", "layer": "A2", "dark": "#F4B454" },
+    "sun-soft":      { "value": "#FCEBD2", "type": "color", "layer": "C",  "dark": "#2A2113" },
+    "ember":         { "value": "#FF7A45", "type": "color", "layer": "C",  "dark": "#FF8A5C" },
+    "ember-soft":    { "value": "#FFE3D6", "type": "color", "layer": "C",  "dark": "#2A1813" },
+    "success":       { "value": "#4CAF50", "type": "color", "layer": "A2", "dark": "#5FBF63" },
+    "warn":          { "value": "#E0A106", "type": "color", "layer": "A2", "dark": "#E8AE1C" },
+    "danger":        { "value": "#C1463B", "type": "color", "layer": "A2", "dark": "#D96458" },
+    "info":          { "value": "{accent}", "type": "color", "layer": "A2", "dark": "{accent}" }
+  },
+  "font": {
+    "family": {
+      "display": { "value": "Smiley Sans, Inter, Noto Sans SC, sans-serif", "type": "fontFamily" },
+      "body":    { "value": "Inter, Noto Sans SC, sans-serif", "type": "fontFamily" },
+      "mono":    { "value": "JetBrains Mono, Space Mono, monospace", "type": "fontFamily" }
+    },
+    "size": {
+      "xs":  { "value": "0.75rem", "type": "dimension" },
+      "sm":  { "value": "0.875rem", "type": "dimension" },
+      "base":{ "value": "1rem", "type": "dimension" },
+      "md":  { "value": "1.125rem", "type": "dimension" },
+      "lg":  { "value": "1.25rem", "type": "dimension" },
+      "xl":  { "value": "1.5rem", "type": "dimension" },
+      "2xl": { "value": "2rem", "type": "dimension" },
+      "3xl": { "value": "2.5rem", "type": "dimension" }
+    }
+  },
+  "space": {
+    "1":  { "value": "4px",  "type": "dimension" },
+    "2":  { "value": "8px",  "type": "dimension" },
+    "3":  { "value": "12px", "type": "dimension" },
+    "4":  { "value": "16px", "type": "dimension" },
+    "5":  { "value": "20px", "type": "dimension" },
+    "6":  { "value": "24px", "type": "dimension" },
+    "8":  { "value": "32px", "type": "dimension" },
+    "10": { "value": "40px", "type": "dimension" },
+    "12": { "value": "48px", "type": "dimension" },
+    "16": { "value": "64px", "type": "dimension" },
+    "20": { "value": "80px", "type": "dimension" }
+  },
+  "radius": {
+    "sm":   { "value": "8px", "type": "dimension" },
+    "md":   { "value": "12px", "type": "dimension" },
+    "lg":   { "value": "16px", "type": "dimension" },
+    "xl":   { "value": "20px", "type": "dimension" },
+    "pill": { "value": "9999px", "type": "dimension" }
+  },
+  "shadow": {
+    "flat":   { "value": "none", "type": "boxShadow" },
+    "ring":   { "value": "0 0 0 1px var(--border)", "type": "boxShadow" },
+    "raised": { "value": "0 1px 2px rgba(30,43,30,0.04), 0 4px 12px rgba(30,43,30,0.06)", "type": "boxShadow" }
+  },
+  "motion": {
+    "fast":  { "value": "150ms", "type": "duration" },
+    "base":  { "value": "200ms", "type": "duration" },
+    "page":  { "value": "320ms", "type": "duration" },
+    "ease":  { "value": "cubic-bezier(0.2,0,0,1)", "type": "cubicBezier" },
+    "focusRing": { "value": "0 0 0 3px color-mix(in srgb, #7CB342 35%, transparent)", "type": "shadow" }
+  },
+  "icon": {
+    "library": { "value": "lucide", "type": "string" },
+    "sizes": { "inline": "16px", "button": "20px", "nav": "24px", "type": "dimension-set" }
+  }
+}

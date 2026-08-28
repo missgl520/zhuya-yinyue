@@ -68,5 +68,13 @@ screenshot_*.png
 v_*.png
 x1.png
 
+# 聊天/对话中用户随手上传的参考图（根目录散图，非源码资源）
+user_upload*.png
+user_upload*.jpg
+u20.png
+chk_t*.png
+hc_t*.png
+ins_t*.png
+
 # WorkBuddy 本地数据（记忆/任务，非项目源码）
 .workbuddy/

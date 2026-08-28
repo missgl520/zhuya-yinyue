@@ -403,7 +403,7 @@ class _SoundContent extends ConsumerWidget {
                     children: [
                       Expanded(
                         child: _ModeChip(
-                          label: '✨ MiniMax 语音',
+                          label: 'MiniMax 语音',
                           selected: ttsMode == 'minimax',
                           onTap: () {
                             ref.read(ttsModeProvider.notifier).state =
@@ -536,7 +536,7 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
     setState(() {
       _source = 'custom';
       _saving = false;
-      _hint = '自定义 API 已保存 ✅';
+      _hint = '自定义 API 已保存 ✓';
     });
     box.put('agnesUseCN', false);
     ref.read(agnesServiceProvider).setUseCN(false);
@@ -655,7 +655,7 @@ class _ModelContentState extends ConsumerState<_ModelContent> {
                 _hint!,
                 style: TextStyle(
                   fontSize: 12,
-                  color: _hint!.contains('✅')
+                  color: _hint!.contains('✓')
                       ? AppTheme.bamboo
                       : Colors.red.shade600,
                 ),

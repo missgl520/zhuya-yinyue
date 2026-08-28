@@ -20,6 +20,10 @@ import '../../pages/settings/info_modules_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/discover/discover_page.dart';
 import '../../pages/profile/profile_page.dart';
+// Phase 1 新增页面
+import '../../pages/pet/pet_page.dart';
+import '../../pages/pet/pet_fullscreen_page.dart';
+import '../../pages/pet/pet_library_page.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -113,6 +117,31 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         name: 'profile',
         builder: (context, state) => const ProfilePage(),
+      ),
+
+      // ════════════════════════════════════════════════════
+      // Phase 1 新增：音乐狗子 × 音乐创作
+      // ════════════════════════════════════════════════════
+
+      // 音乐狗子主页（状态展示 + 交互按钮 + 音乐创作入口）
+      GoRoute(
+        path: '/pet',
+        name: 'pet',
+        builder: (context, state) => const PetPage(),
+      ),
+
+      // 音乐狗子全屏页（独立全屏查看角色 + 详细状态）
+      GoRoute(
+        path: '/pet/full',
+        name: 'pet-full',
+        builder: (context, state) => const PetFullscreenPage(),
+      ),
+
+      // 音乐库（歌词库 + 歌曲库 + 生成历史）
+      GoRoute(
+        path: '/pet/library',
+        name: 'pet-library',
+        builder: (context, state) => const PetLibraryPage(),
       ),
     ],
   );
