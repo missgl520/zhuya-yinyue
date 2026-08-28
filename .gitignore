@@ -10,3 +10,6 @@ _backend_run.log
 
 # 含密钥的配置，禁止提交（本地保留）
 config.py
+
+# IndexTTS 第三方引擎源码(自带 .git, 体积大, 不入库; 本地 F 盘留存)
+tts_service/index-tts/
