@@ -1,0 +1,172 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 竹笌（zhuyapp）Flutter 项目配置文件
+#
+# 项目名称：竹笌 - 2D虚拟角色语音陪聊助手
+# 发布位置：none（不发布到 pub.dev）
+# 版本号：1.0.0+1（ semantic_version+build_number ）
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: zhuyapp
+description: "竹笌 - 2D虚拟角色语音陪聊助手"
+publish_to: 'none'
+version: 1.0.0+1
+
+# Dart SDK 版本约束
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  # Flutter SDK 本身
+  flutter:
+    sdk: flutter
+  # iOS 风格图标库（保留兼容，新代码统一用 AppIcon 门面）
+  cupertino_icons: ^1.0.8
+
+  # ═══════════════════════════════════════════════════════
+  # 状态管理
+  # ═══════════════════════════════════════════════════════
+  # Riverpod：响应式状态管理与依赖注入
+  flutter_riverpod: ^2.6.1
+
+  # ═══════════════════════════════════════════════════════
+  # 路由
+  # ═══════════════════════════════════════════════════════
+  # 声明式路由框架，支持 URL 导航、嵌套路由、重定向
+  go_router: ^14.8.1
+
+  # ═══════════════════════════════════════════════════════
+  # 本地存储
+  # ═══════════════════════════════════════════════════════
+  # Hive：轻量级 NoSQL 键值数据库，用于存储用户设置、API Key 等
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+
+  # ═══════════════════════════════════════════════════════
+  # SQLite + FTS5（长期记忆搜索）
+  # ═══════════════════════════════════════════════════════
+  # sqflite：SQLite 数据库，用于存储对话历史与长期记忆
+  sqflite: ^2.4.2
+  # path：跨平台路径拼接工具
+  path: ^1.9.1
+
+  # ═══════════════════════════════════════════════════════
+  # HTTP
+  # ═══════════════════════════════════════════════════════
+  # Dart 官方 HTTP 客户端，用于调用 Agnes API、Cartesia TTS 等后端服务
+  http: ^1.3.0
+  # dio：强大的 Dart HTTP 客户端，支持拦截器、取消请求、流式响应等
+  # 用于 Cartesia TTS 服务流式下载音频数据
+  dio: ^5.11.0
+
+  # ═══════════════════════════════════════════════════════
+  # TTS（文本转语音）
+  # ═══════════════════════════════════════════════════════
+  # 调用系统 TTS 引擎（如小米离线引擎）
+  flutter_tts: ^4.2.0
+
+  # ═══════════════════════════════════════════════════════
+  # 在线 TTS 音频播放（Cartesia）
+  # ═══════════════════════════════════════════════════════
+  # 高性能音频播放插件，用于播放在线 TTS 返回的音频流
+  just_audio: ^0.9.43
+
+  # ═══════════════════════════════════════════════════════
+  # ASR（语音识别）
+  # ═══════════════════════════════════════════════════════
+  # 将用户语音转为文字，供对话模型处理
+  speech_to_text: ^7.0.0
+
+  # ═══════════════════════════════════════════════════════
+  # Live2D 虚拟角色
+  # ═══════════════════════════════════════════════════════
+  # 渲染 2D 虚拟角色模型，实现表情、动作等交互反馈
+  flutter_live2d:
+    path: ./vendor/flutter_live2d
+
+  # 3D 模型渲染（VRM/GLB 真全身 + 真抬腿验证用，model_viewer_plus 容器）
+  model_viewer_plus: ^1.10.0
+
+  # ═══════════════════════════════════════════════════════
+  # 权限
+  # ═══════════════════════════════════════════════════════
+  # 权限请求与管理（麦克风、存储等）
+  permission_handler: ^12.0.3
+  # 权限引导页，帮助用户理解为何需要某项权限
+  flutter_permission_wizard: ^0.1.4
+
+  # ═══════════════════════════════════════════════════════
+  # 工具库
+  # ═══════════════════════════════════════════════════════
+  # uuid：生成唯一标识符
+  uuid: ^4.5.1
+  # intl：国际化、日期时间格式化
+  intl: ^0.20.2
+  path_provider: ^2.1.5
+  url_launcher: ^6.3.1
+  livekit_client: ^2.10.0
+  file_picker: ^8.1.7
+  # 接口请求签名（HMAC-SHA256，与后端 auth.py 对齐）
+  crypto: ^3.0.6
+  # 网络连通性监听（离线优先：SyncEngine 用于检测联网恢复）
+  connectivity_plus: ^7.0.0
+  # 图片选择（相册 / 相机）
+  image_picker: ^1.1.2
+  # 本地存储静态加密（AES-256-CBC，密钥存 secure storage）
+  # pointycastle 已随 livekit_client 引入（^4），显式声明以保证可用
+  pointycastle: ^4.0.0
+  flutter_secure_storage: ^9.2.0
+  webview_flutter: ^4.10.0
+
+dev_dependencies:
+  # Flutter 测试框架
+  flutter_test:
+    sdk: flutter
+  # Flutter 官方推荐的静态分析规则集
+  flutter_lints: ^6.0.0
+
+flutter:
+  # 启用 Material Design 图标字体
+  uses-material-design: true
+
+  # 项目静态资源目录
+  assets:
+    # Live2D 模型资源目录（合规：Live2D 官方免费示例 Ren，Cubism 3）
+    # 注意：本环境 Flutter 对目录资源声明不递归子目录，
+    # 因此贴图/表情/动作子目录必须显式列出，否则模型缺资源而渲染空白。
+    - assets/live2d/ren/
+    - assets/live2d/ren/Ren.2048/
+    - assets/live2d/ren/expressions/
+    - assets/live2d/ren/motions/
+    # 官方完整版 Ren（腿真绑定，替代竹笌简化版）：同样需显式列出各子目录
+    - assets/live2d/ren_official/
+    - assets/live2d/ren_official/Ren.2048/
+    - assets/live2d/ren_official/expressions/
+    - assets/live2d/ren_official/motions/
+    # 全局 Logo 竹子图案（v1.9）
+    - assets/logo.png
+    - assets/logo_mascot.png
+    - assets/logo/
+    # 启动页人物（旧保留）
+    - assets/splash_char.png
+    - assets/splash_char2.png
+    - assets/splash_char_transparent.png
+    # 3D 验证用测试人形（Khronos CesiumMan，自带 walk 动画，Apache-2.0 免费）
+    - assets/vrm_test/CesiumMan.glb
+    # 程序化生成的竹笌 3D 少年人形（脚本生成，分部位配色 + 走路动画）
+    - assets/vrm_test/zhuyu_avatar.glb
+    # 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）
+    - assets/vrm_test/dog_avatar.glb
+    # 换装系统资源（程序化生成的体模 + 配件）
+    - assets/vrm_test/avatar_system/
+    # 换装系统 Web 端（Three.js HTML 渲染器）
+    - assets/web/avatar_viewer.html
+
+# ═══════════════════════════════════════════════════════
+# 依赖覆盖：model_viewer_plus 本地补丁副本
+# 官方 1.10.0 在 Android WebView 默认用 VirtualDisplay，导致 GLB 走路动画
+# 几分钟后冻结；已本地化补丁（displayWithHybridComposition: true，改用
+# Hybrid Composition 渲染），覆盖官方源以避免 flutter pub get 冲掉补丁。
+# 副本位于 packages/model_viewer_plus（相对本文件，已在非 C 盘）。
+dependency_overrides:
+  model_viewer_plus:
+    path: packages/model_viewer_plus

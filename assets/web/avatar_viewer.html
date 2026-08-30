@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>竹笌换装系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #edf7f0; }
+    #viewer { width: 100%; height: 100%; display: block; }
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #edf7f0; z-index: 10;
+      font-family: system-ui, sans-serif;
+      font-size: 15px; color: #4a7a52;
+      transition: opacity 0.5s;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    #loading-box { text-align: center; }
+    #loading-dots { display: flex; justify-content: center; gap: 4px; margin-bottom: 10px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #4a7a52; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+    #error {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(200, 50, 50, 0.9); color: white; padding: 8px 18px; border-radius: 20px;
+      font-size: 13px; font-family: system-ui, sans-serif; z-index: 20; display: none;
+    }
+  </style>
+</head>
+<body>
+<div id="loading"><div id="loading-box"><div id="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>正在加载角色...</div></div>
+<div id="error"></div>
+<canvas id="viewer"></canvas>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// ─── 场景 ───────────────────────────────────────────────
+const canvas = document.getElementById('viewer');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xedf7f0);
+scene.fog = new THREE.Fog(0xedf7f0, 8, 20);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(0, 1.0, 3.5);
+camera.lookAt(0, 0.9, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.9, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 1.5;
+controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+const sun = new THREE.DirectionalLight(0xfff5e0, 1.5);
+sun.position.set(3, 6, 4); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024);
+Object.assign(sun.shadow.camera, { near: 0.5, far: 20, left: -3, right: 3, top: 4, bottom: -2 });
+sun.shadow.bias = -0.0005; scene.add(sun);
+scene.add(Object.assign(new THREE.DirectionalLight(0xc8e8ff, 0.55), { position: new THREE.Vector3(-3, 3, -2) }));
+scene.add(Object.assign(new THREE.DirectionalLight(0xffffff, 0.35), { position: new THREE.Vector3(0, 2, -4) }));
+scene.add(new THREE.HemisphereLight(0xd0e8ff, 0xb8d0a0, 0.4));
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(2.5, 48), new THREE.ShadowMaterial({ opacity: 0.18 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.36, 48), new THREE.MeshBasicMaterial({ color: 0xc8d8c0, side: THREE.DoubleSide, transparent: true, opacity: 0.5 }));
+ring.rotation.x = -Math.PI / 2; ring.position.y = 0.002; scene.add(ring);
+
+// ─── 模型加载 ───────────────────────────────────────────
+const loader = new GLTFLoader();
+const cache = {};
+
+async function loadGLB(url) {
+  if (cache[url]) return cache[url].scene.clone(true);
+  return new Promise((resolve, reject) => {
+    loader.load(url, gltf => {
+      cache[url] = gltf;
+      const clone = gltf.scene.clone(true);
+      clone.userData.gltfAnimations = gltf.animations;
+      resolve(clone);
+    }, undefined, err => { console.warn('Load failed:', url, err); reject(err); });
+  });
+}
+
+// ─── 角色部件 ───────────────────────────────────────────
+let baseGroup = null;
+const accessoryGroups = { hair: null, top: null, bottom: null, shoes: null, eye: null };
+
+// ─── 动画状态 ───────────────────────────────────────────
+let mixer = null;
+let walkAction = null;
+let animMode = 'idle'; // 'idle' | 'walk'
+let idleT = 0;
+let baseIdleY = 0;
+
+// 播放走路动画（GLB 内置 AnimationMixer）
+function playWalk() {
+  if (!baseGroup) return;
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+  const clips = baseGroup.userData.gltfAnimations || [];
+  if (!clips.length) return;
+  mixer = new THREE.AnimationMixer(baseGroup);
+  const clip = THREE.AnimationClip.findByName(clips, 'Walk') || clips[0];
+  if (!clip) return;
+  walkAction = mixer.clipAction(clip);
+  walkAction.setLoop(THREE.LoopRepeat, Infinity);
+  walkAction.play();
+  animMode = 'walk';
+}
+
+// 停止走路，切换 idle
+function stopWalk() {
+  if (walkAction) { walkAction.stop(); walkAction = null; }
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+  animMode = 'idle';
+}
+
+// 走路/idle 统一更新（render loop 每一帧调用）
+function updateAnimation(dt) {
+  if (animMode === 'walk' && mixer) {
+    mixer.update(dt);
+    Object.values(accessoryGroups).forEach(g => {
+      if (g) { g.position.y = baseGroup.position.y; g.rotation.y = baseGroup.rotation.y; }
+    });
+  } else if (animMode === 'idle' && baseGroup) {
+    idleT += dt;
+    baseGroup.position.y = baseIdleY + Math.sin(idleT * 1.4) * 0.008;
+    baseGroup.rotation.y = Math.sin(idleT * 0.65) * 0.028;
+    Object.values(accessoryGroups).forEach(g => {
+      if (g) { g.position.y = baseGroup.position.y; g.rotation.y = baseGroup.rotation.y; }
+    });
+  }
+}
+
+// 加载基础模型（默认 idle）
+async function loadBase(url) {
+  if (baseGroup) {
+    scene.remove(baseGroup);
+    baseGroup.traverse(c => { if (c.isMesh) { c.geometry?.dispose(); c.material?.dispose(); } });
+    baseGroup = null;
+  }
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+  walkAction = null;
+  animMode = 'idle';
+  idleT = 0;
+  try {
+    baseGroup = await loadGLB(url);
+    baseGroup.traverse(c => { if (c.isMesh) { c.castShadow = true; c.receiveShadow = true; } });
+    baseIdleY = baseGroup.position.y;
+    scene.add(baseGroup);
+    hideLoading();
+  } catch (e) {
+    showError('基础模型加载失败'); hideLoading();
+  }
+}
+
+// 加载配件
+async function loadAccessory(category, url) {
+  if (accessoryGroups[category]) {
+    scene.remove(accessoryGroups[category]);
+    accessoryGroups[category].traverse(c => { if (c.isMesh) { c.geometry?.dispose(); c.material?.dispose(); } });
+    accessoryGroups[category] = null;
+  }
+  if (!url) return;
+  try {
+    const g = await loadGLB(url);
+    g.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true; c.receiveShadow = true;
+        if (category === 'eye') c.renderOrder = 1;
+      }
+    });
+    accessoryGroups[category] = g;
+    scene.add(g);
+  } catch (e) { console.warn('Accessory load failed:', category, url, e); }
+}
+
+// ─── 响应式 ─────────────────────────────────────────────
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w || canvas.height !== h) {
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h; camera.updateProjectionMatrix();
+  }
+}
+window.addEventListener('resize', resize); resize();
+
+// ─── 渲染循环 ───────────────────────────────────────────
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  updateAnimation(dt);
+  ring.rotation.z += dt * 0.15;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ─── 加载状态 ───────────────────────────────────────────
+function hideLoading() { const el = document.getElementById('loading'); if (el) el.classList.add('hidden'); }
+function showError(msg) {
+  const el = document.getElementById('error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+// ─── Flutter 通信 ───────────────────────────────────────
+window.addEventListener('message', async (event) => {
+  const raw = event.data;
+  const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  switch (data.type) {
+    case 'load':
+      await loadBase(data.baseUrl);
+      if (data.hairUrl)   await loadAccessory('hair',   data.hairUrl);
+      if (data.topUrl)    await loadAccessory('top',    data.topUrl);
+      if (data.bottomUrl) await loadAccessory('bottom', data.bottomUrl);
+      if (data.shoesUrl)  await loadAccessory('shoes',  data.shoesUrl);
+      break;
+    case 'hair':    await loadAccessory('hair',   data.url || null); break;
+    case 'top':     await loadAccessory('top',    data.url || null); break;
+    case 'bottom':  await loadAccessory('bottom', data.url || null); break;
+    case 'shoes':   await loadAccessory('shoes',  data.url || null); break;
+    case 'eye':
+    case 'eyeColor': await loadAccessory('eye', data.url || null); break;
+    case 'playWalk':  if (baseGroup) playWalk(); break;
+    case 'stopWalk':
+      stopWalk();
+      if (baseGroup) baseGroup.rotation.y = 0;
+      break;
+    case 'rotateTo':
+      if (baseGroup && data.angle !== undefined) baseGroup.rotation.y = data.angle;
+      break;
+  }
+});
+
+hideLoading();
+</script>
+</body>
+</html>

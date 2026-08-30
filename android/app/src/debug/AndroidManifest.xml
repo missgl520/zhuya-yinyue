@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        Debug 构建专用清单文件
+        INTERNET 权限在开发阶段必不可少：
+        - Flutter 工具需要与运行中的应用通信
+        - 支持热重载（hot reload）、热重启（hot restart）和断点调试
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>

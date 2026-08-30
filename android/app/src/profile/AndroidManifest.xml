@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+        Profile 构建专用清单文件
+        INTERNET 权限在性能分析（profiling）时必需：
+        - Flutter 工具需要与运行中的应用通信
+        - 支持性能采样、数据回传和调试信息收集
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+</manifest>

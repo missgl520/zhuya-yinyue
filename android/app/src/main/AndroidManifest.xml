@@ -1,0 +1,76 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 应用根节点：定义应用名称、图标、主入口等 -->
+    <application
+        android:label="竹笌"
+        android:name="${applicationName}"
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="true">
+
+        <!-- 主 Activity：Flutter 界面渲染入口 -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+
+            <!-- 启动主题：Flutter UI 初始化完成前用户看到的窗口背景主题 -->
+            <meta-data
+              android:name="io.flutter.embedding.android.NormalTheme"
+              android:resource="@style/NormalTheme"
+              />
+
+            <!-- 声明该 Activity 为应用启动入口 -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+
+        <!-- 关闭 Impeller，回退 Skia/GL 渲染器。
+             原因：flutter_live2d 使用 Cubism GLES2 原生视图，且插件用的是
+             VirtualDisplay 模式 PlatformView。在 Flutter 3.16+ 默认的 Impeller
+             渲染器下，这类 OpenGL 平台视图经常不绘制（空白 / 卡在加载层）。
+             关闭后回退到 Skia（GL），Live2D 才能正常渲染。 -->
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
+
+        <!-- Flutter 嵌入版本声明，固定为 2；Flutter 工具会读取此值生成插件注册代码 -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <!-- 网络权限：用于访问 Agnes API、Cartesia TTS、ASR 等云服务 -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- 网络状态监听：离线优先 SyncEngine 用于检测联网恢复 -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <!-- 录音权限：语音输入与 ASR 语音识别需要 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- 相机权限：拍照发送图片附件需要（非强制） -->
+    <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- 相册权限：选择图片发送附件需要，按 Android 版本分别声明 -->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32"/>
+    <!-- 蓝牙权限：语音通话场景下连接蓝牙耳机等音频外设（Android 12+ 需新权限） -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"/>
+    <uses-permission android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30"/>
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30"/>
+
+    <!-- 查询能够处理文本的 Activity，Flutter 文本处理插件会使用到 -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT"/>
+            <data android:mimeType="text/plain"/>
+        </intent>
+    </queries>
+</manifest>

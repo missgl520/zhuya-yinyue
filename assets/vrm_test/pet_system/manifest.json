@@ -1,0 +1,32 @@
+{
+  "type": "pet",
+  "name": "小狗",
+  "petType": "dog",
+  "variants": [
+    {
+      "id": "brown",
+      "name": "brown",
+      "file": "dog_brown.glb"
+    },
+    {
+      "id": "golden",
+      "name": "golden",
+      "file": "dog_golden.glb"
+    },
+    {
+      "id": "black",
+      "name": "black",
+      "file": "dog_black.glb"
+    },
+    {
+      "id": "white",
+      "name": "white",
+      "file": "dog_white.glb"
+    },
+    {
+      "id": "spotted",
+      "name": "spotted",
+      "file": "dog_spotted.glb"
+    }
+  ]
+}

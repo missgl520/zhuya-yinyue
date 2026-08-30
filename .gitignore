@@ -1,0 +1,42 @@
+# Build
+build/
+.dart_tool/
+.packages
+.pub-cache/
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large binary assets (keep paths in manifest.json instead)
+assets/vrm_test/avatar_system/*.glb
+assets/vrm_test/avatar_system/*.png
+assets/vrm_test/pet_system/*.glb
+assets/vrm/zhuyu_*.glb
+assets/vrm/zhuyu_*.vrm
+assets/vrm_test/zhuyu_avatar.glb
+assets/vrm_test/zhuyu_avatar.glb.bak
+assets/vrm_test/zhuyu_ren_base.vroid
+assets/vrm_test/dog_avatar.glb
+assets/vrm_test/CesiumMan.glb
+assets/vrm_test/zhuyu_avatar.glb.bak
+assets/live2d/*/Haru.moc3
+assets/live2d/*/Hiyori.moc3
+assets/live2d/*/Ren.moc3
+assets/logo_mascot.png
+assets/logo2.png
+
+# zhuya-houduan (separate repo)
+zhuya-houduan/
+
+# Large vendor packages
+packages/model_viewer_plus/assets/
+packages/model_viewer_plus/example/
+packages/model_viewer_plus/CHANGELOG.md
+packages/model_viewer_plus/LICENSE

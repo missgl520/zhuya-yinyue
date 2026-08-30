@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        启动主题（Dark 模式）
+        在系统开启深色模式、应用进程启动但 Flutter UI 尚未初始化时应用。
+        当 Flutter 引擎绘制第一帧后，会自动切换到 NormalTheme。
+    -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- 启动窗口背景，对应 launch_background.xml -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+
+    <!--
+        正常主题（Dark 模式）
+        Flutter 引擎完成第一帧绘制后应用。
+        决定 Flutter UI 初始化期间以及运行期间窗口背景颜色。
+        仅在 Flutter Android V2 嵌入方式下使用。
+    -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>
