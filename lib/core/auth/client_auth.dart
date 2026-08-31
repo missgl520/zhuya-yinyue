@@ -23,10 +23,15 @@ class ClientAuth {
   static final ClientAuth instance = ClientAuth._();
 
   /// 必须与后端 ZHUYU_API_KEY 一致；生产环境用 --dart-define 覆盖。
-  static const String apiKey = String.fromEnvironment(
-    'ZHUYU_API_KEY',
-    defaultValue: 'zhuyu-dev-key-change-me',
-  );
+  static String get apiKey {
+    const key = String.fromEnvironment('ZHUYU_API_KEY', defaultValue: '');
+    if (key.isEmpty) {
+      throw StateError(
+        '请通过 --dart-define=ZHUYU_API_KEY=*** 传入后端密钥',
+      );
+    }
+    return key;
+  }
 
   String? _cachedUserId;
 

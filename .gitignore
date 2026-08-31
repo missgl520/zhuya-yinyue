@@ -35,7 +35,11 @@ assets/logo2.png
 # zhuya-houduan (separate repo)
 zhuya-houduan/
 
-# Large vendor packages
+# env files
+.env
+.env.local
+.env.prod
+vendor/
 packages/model_viewer_plus/assets/
 packages/model_viewer_plus/example/
 packages/model_viewer_plus/CHANGELOG.md
