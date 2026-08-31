@@ -11,8 +11,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../services/tts_service.dart';
-import '../services/mini_max_tts_service.dart';
+import 'tts_service.dart';
+import 'mini_max_tts_service.dart';
 import '../../presentation/providers/settings_provider.dart';
 import '../../presentation/providers/chat_provider.dart';
 
