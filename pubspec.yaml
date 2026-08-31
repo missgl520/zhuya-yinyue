@@ -13,7 +13,7 @@ version: 1.0.0+1
 
 # Dart SDK 版本约束
 environment:
-  sdk: ^3.12.2
+  sdk: ^3.16.0
 
 dependencies:
   # Flutter SDK 本身
@@ -21,6 +21,11 @@ dependencies:
     sdk: flutter
   # iOS 风格图标库（保留兼容，新代码统一用 AppIcon 门面）
   cupertino_icons: ^1.0.8
+
+  # ═══════════════════════════════════════════════════════
+  # AI 时代专用图标库（Agent/MCP/RAG/VectorDB 等，新菜单页优先使用）
+  # 要求 Flutter SDK >= 3.16.0
+  iconmind_flutter: ^0.6.0
 
   # ═══════════════════════════════════════════════════════
   # 状态管理
