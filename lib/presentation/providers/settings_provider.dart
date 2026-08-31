@@ -22,6 +22,7 @@ class SettingsState {
   final bool isDark; // 主题：true = 暗色，false = 亮色
   final bool ttsEnabled; // TTS 开关
   final String ttsMode; // TTS 模式：'minimax' | 'system'
+  final String? miniMaxApiKey; // MiniMax TTS API Key（存 Hive，加密）
   final bool agnesUseCN; // Agnes 国内版：true = 国内（apihub.agnes-ai.cn）
   final String? agnesApiKey; // Agnes API Key（用户输入，存 Hive）
   final bool asrListening; // ASR 录音状态
@@ -31,6 +32,7 @@ class SettingsState {
     this.isDark = false,
     this.ttsEnabled = true,
     this.ttsMode = 'system',
+    this.miniMaxApiKey,
     this.agnesUseCN = true,
     this.agnesApiKey,
     this.asrListening = false,
@@ -41,6 +43,7 @@ class SettingsState {
     bool? isDark,
     bool? ttsEnabled,
     String? ttsMode,
+    String? miniMaxApiKey,
     bool? agnesUseCN,
     String? agnesApiKey,
     bool? asrListening,
@@ -50,6 +53,7 @@ class SettingsState {
       isDark: isDark ?? this.isDark,
       ttsEnabled: ttsEnabled ?? this.ttsEnabled,
       ttsMode: ttsMode ?? this.ttsMode,
+      miniMaxApiKey: miniMaxApiKey ?? this.miniMaxApiKey,
       agnesUseCN: agnesUseCN ?? this.agnesUseCN,
       agnesApiKey: agnesApiKey ?? this.agnesApiKey,
       asrListening: asrListening ?? this.asrListening,
@@ -75,8 +79,9 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
       isDark: _settingsBox.get('isDarkMode', defaultValue: false) as bool,
       ttsEnabled: _settingsBox.get('ttsEnabled', defaultValue: true) as bool,
       ttsMode: _settingsBox.get('ttsMode', defaultValue: 'system') as String,
+      miniMaxApiKey: _settingsBox.get('miniMaxApiKey', defaultValue: '') as String?,
       agnesUseCN: _settingsBox.get('agnesUseCN', defaultValue: true) as bool,
-      agnesApiKey: _settingsBox.get('agnesApiKey', defaultValue: '') as String,
+      agnesApiKey: _settingsBox.get('agnesApiKey', defaultValue: '') as String?,
     );
   }
 
@@ -96,6 +101,12 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
   void setTtsMode(String mode) {
     state = state.copyWith(ttsMode: mode);
     _settingsBox.put('ttsMode', mode);
+  }
+
+  /// 设置 MiniMax API Key（TTS 情感语音）
+  void setMiniMaxApiKey(String key) {
+    state = state.copyWith(miniMaxApiKey: key);
+    _settingsBox.put('miniMaxApiKey', key);
   }
 
   /// 设置 Agnes API Key
@@ -143,9 +154,14 @@ final ttsEnabledProvider = Provider<bool>((ref) {
   return ref.watch(settingsProvider).ttsEnabled;
 });
 
-/// TTS 模式
+/// TTS 模式（'minimax' | 'system'）
 final ttsModeProvider = Provider<String>((ref) {
   return ref.watch(settingsProvider).ttsMode;
+});
+
+/// MiniMax TTS API Key
+final miniMaxApiKeyProvider = Provider<String?>((ref) {
+  return ref.watch(settingsProvider).miniMaxApiKey;
 });
 
 /// Agnes 国内版

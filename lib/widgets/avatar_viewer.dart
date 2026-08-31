@@ -109,17 +109,18 @@ class _AvatarViewerState extends ConsumerState<AvatarViewer> {
   }
 }
 
-class _WalkButton extends StatefulWidget {
-  final VoidCallback onPlay, onStop;
+class _WalkButton extends ConsumerStatefulWidget {
+  final void Function() onPlay, onStop;
   const _WalkButton({required this.onPlay, required this.onStop});
+
   @override
-  State<_WalkButton> createState() => _WalkButtonState();
+  ConsumerState<_WalkButton> createState() => _WalkButtonState();
 }
 
-class _WalkButtonState extends State<_WalkButton> {
-  bool _walking = false;
+class _WalkButtonState extends ConsumerState<_WalkButton> {
   @override
   Widget build(BuildContext context) {
+    final isWalking = ref.watch(avatarStateProvider).isWalking;
     return Material(
       color: Colors.white.withValues(alpha: 0.85),
       borderRadius: BorderRadius.circular(24),
@@ -127,8 +128,14 @@ class _WalkButtonState extends State<_WalkButton> {
       child: InkWell(
         borderRadius: BorderRadius.circular(24),
         onTap: () {
-          setState(() => _walking = !_walking);
-          _walking ? widget.onPlay() : widget.onStop();
+          final notifier = ref.read(avatarStateProvider.notifier);
+          if (isWalking) {
+            notifier.setWalking(false);
+            widget.onStop();
+          } else {
+            notifier.setWalking(true);
+            widget.onPlay();
+          }
         },
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -136,12 +143,12 @@ class _WalkButtonState extends State<_WalkButton> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                _walking ? Icons.stop_rounded : Icons.directions_walk,
+                isWalking ? Icons.stop_rounded : Icons.directions_walk,
                 size: 18, color: const Color(0xFF4a7a52),
               ),
               const SizedBox(width: 6),
               Text(
-                _walking ? '停下' : '走路',
+                isWalking ? '停下' : '走路',
                 style: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w600,
                   color: Color(0xFF4a7a52),

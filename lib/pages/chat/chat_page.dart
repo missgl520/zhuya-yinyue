@@ -25,6 +25,7 @@ import '../settings/menu_panel.dart';
 import '../../domain/entities/entities.dart' as entities;
 import '../../presentation/providers/chat_provider.dart';
 import '../../presentation/providers/settings_provider.dart';
+import '../../core/services/emotion_tts_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/vrm_avatar_view.dart';
 import '../../widgets/voice_button.dart';
@@ -133,20 +134,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
   Future<void> _speakReply(String text, {String? emotion}) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
-    final ttsEnabled = ref.read(ttsEnabledProvider);
-    if (!ttsEnabled) return;
-
-    final mode = ref.read(ttsModeProvider);
     try {
-      if (mode == 'minimax') {
-        final ok =
-            await ref.read(miniMaxTtsServiceProvider).speak(trimmed);
-        if (!ok) {
-          await ref.read(ttsServiceProvider).speak(trimmed, emotion: emotion);
-        }
-      } else {
-        await ref.read(ttsServiceProvider).speak(trimmed);
-      }
+      await ref.read(emotionTtsEngineProvider).speak(trimmed, emotion: emotion ?? 'neutral');
     } catch (_) {
       // 朗读失败不影响对话完整性
     }

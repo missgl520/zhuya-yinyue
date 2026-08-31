@@ -20,6 +20,7 @@ class AvatarState {
   final Gender gender;
   final String? hairId, topId, bottomId, shoesId;
   final String eyeColor; // brown|blue|green|black|grey
+  final bool isWalking; // true = 正在播放走路动画
 
   const AvatarState({
     this.gender = Gender.male,
@@ -28,6 +29,7 @@ class AvatarState {
     this.bottomId,
     this.shoesId,
     this.eyeColor = 'blue',
+    this.isWalking = false,
   });
 
   String get genderStr => gender == Gender.male ? 'male' : 'female';
@@ -48,6 +50,7 @@ class AvatarState {
     String? bottomId,bool clearBottomId = false,
     String? shoesId, bool clearShoesId = false,
     String? eyeColor,
+    bool? isWalking,
   }) {
     return AvatarState(
       gender:   gender   ?? this.gender,
@@ -56,6 +59,7 @@ class AvatarState {
       bottomId: clearBottomId ? null : (bottomId ?? this.bottomId),
       shoesId:  clearShoesId  ? null : (shoesId  ?? this.shoesId),
       eyeColor: eyeColor ?? this.eyeColor,
+      isWalking: isWalking ?? this.isWalking,
     );
   }
 }
@@ -93,6 +97,9 @@ class AvatarStateNotifier extends StateNotifier<AvatarState> {
   }
   void setEyeColor(String color) {
     state = state.copyWith(eyeColor: color);
+  }
+  void setWalking(bool w) {
+    state = state.copyWith(isWalking: w);
   }
 
   void reset() => state = const AvatarState();
