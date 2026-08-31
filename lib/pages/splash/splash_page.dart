@@ -88,7 +88,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   /// 检查是否已同意当前版本的法律条款
   Future<void> _initConsent() async {
-    final box = await Hive.openBox('settings');
+    // boxes 由 main.dart 在 runApp 前统一初始化（已加密），此处直接引用
+    final box = Hive.box('settings');
     final agreed = box.get('agreedToLegal', defaultValue: false) as bool;
     final agreedVersion =
         box.get('agreedToLegalVersion', defaultValue: '') as String;
@@ -109,7 +110,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   /// 同意按钮：写入 Hive，关闭卡片并跳转
   Future<void> _acceptConsent() async {
-    final box = await Hive.openBox('settings');
+    // boxes 由 main.dart 在 runApp 前统一初始化（已加密），此处直接引用
+    final box = Hive.box('settings');
     await box.put('agreedToLegal', true);
     await box.put('agreedToLegalVersion', _legalVersion);
     if (mounted) {

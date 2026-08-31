@@ -36,6 +36,11 @@ class LocalEncryption {
   static Uint8List? _cachedKey;
   static final Random _random = Random.secure();
 
+  /// 获取 Hive AES 加密密钥（32 字节），复用上述 AES 密钥体系，
+  /// 避免每个存储层各管各的密钥导致密钥管理碎片化。
+  /// 返回值可直接传给 Hive.openBox(..., encryptionCipher: HiveAesCipher(key))。
+  static Future<Uint8List> getHiveKey() => _getKey();
+
   /// 获取或生成 32 字节 AES 密钥（base64 持久化到安全存储）
   static Future<Uint8List> _getKey() async {
     if (_cachedKey != null) return _cachedKey!;

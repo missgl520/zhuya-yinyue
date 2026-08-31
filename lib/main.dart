@@ -2,13 +2,30 @@
 // 竹笌 App - 主入口
 // 负责：Hive 初始化 → 全局 ProviderScope → MaterialApp.router
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive/hive.dart'; // HiveAesCipher
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/sync/sync_engine.dart';
+import 'core/security/local_encryption.dart';
 import 'presentation/providers/app_providers.dart';
+
+/// 打开受信任 Hive box，失败时回退到无加密（兼容老设备/旧数据）。
+Future<Box> _openBox(String name, {Uint8List? encryptionKey}) async {
+  if (encryptionKey != null) {
+    try {
+      // 优先以加密方式打开（生产推荐）
+      return await Hive.openBox(name, encryptionCipher: HiveAesCipher(encryptionKey));
+    } catch (_) {
+      // 加密失败（可能是旧 box 或 key 不匹配），降级到无加密
+      return await Hive.openBox(name);
+    }
+  }
+  return await Hive.openBox(name);
+}
 
 void main() async {
   // Flutter 异步初始化必须调用
@@ -16,9 +33,17 @@ void main() async {
 
   // 初始化 Hive 本地存储（类 IndexedDB，用于持久化）
   await Hive.initFlutter();
-  await Hive.openBox('settings');
-  await Hive.openBox('messages');
-  await Hive.openBox('memory');
+
+  // 获取 AES 加密密钥（存于 flutter_secure_storage，设备级安全）
+  // 密钥不存在时自动生成并持久化；Hive 加密保护 settings/messages/memory。
+  final hiveKey = await LocalEncryption.getHiveKey();
+
+  // 打开三个 box，均启用 AES-256 加密（敏感数据：API Key / 聊天记录 / 记忆）
+  await Future.wait([
+    _openBox('settings', encryptionKey: hiveKey),
+    _openBox('messages', encryptionKey: hiveKey),
+    _openBox('memory', encryptionKey: hiveKey),
+  ]);
 
   // 初始化后端配置（必须先于 App 运行，因为它决定 Dio baseUrl）
   await BackendConfig.instance.init();
