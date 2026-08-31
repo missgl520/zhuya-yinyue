@@ -428,7 +428,69 @@ class _SoundContent extends ConsumerWidget {
                 ],
               ),
             ),
+            if (ttsMode == 'minimax') ...[
+              const SizedBox(height: 12),
+              _MiniMaxKeyField(),
+            ],
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ── MiniMax API Key 输入 ──
+class _MiniMaxKeyField extends ConsumerStatefulWidget {
+  const _MiniMaxKeyField();
+
+  @override
+  ConsumerState<_MiniMaxKeyField> createState() => _MiniMaxKeyFieldState();
+}
+
+class _MiniMaxKeyFieldState extends ConsumerState<_MiniMaxKeyField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: ref.read(miniMaxApiKeyProvider));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'MiniMax API Key',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _controller,
+            obscureText: true,
+            decoration: const InputDecoration(
+              hintText: '粘贴 MiniMax API Key（设置后启用情感语音）',
+              isDense: true,
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (v) {
+              ref.read(miniMaxApiKeyProvider.notifier).state = v;
+              Hive.box('settings').put('miniMaxApiKey', v);
+            },
+          ),
         ],
       ),
     );

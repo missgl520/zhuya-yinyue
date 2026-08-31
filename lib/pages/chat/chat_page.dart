@@ -129,13 +129,21 @@ class _ChatPageState extends ConsumerState<ChatPage>
     final mode = ref.read(old_providers.ttsModeProvider);
     try {
       if (mode == 'minimax') {
-        final ok = await ref
-            .read(old_providers.miniMaxTtsServiceProvider)
-            .speak(trimmed);
-        if (!ok) {
+        final apiKey = ref.read(old_providers.miniMaxApiKeyProvider);
+        final mm = ref.read(old_providers.miniMaxTtsServiceProvider);
+        if (apiKey.isEmpty) {
+          // 未配置 MiniMax Key → 直接降级系统 TTS，保证一定出声
           await ref
               .read(old_providers.ttsServiceProvider)
               .speak(trimmed, emotion: emotion);
+        } else {
+          mm.configure(apiKey: apiKey);
+          final ok = await mm.speak(trimmed, emotion: emotion);
+          if (!ok) {
+            await ref
+                .read(old_providers.ttsServiceProvider)
+                .speak(trimmed, emotion: emotion);
+          }
         }
       } else {
         await ref.read(old_providers.ttsServiceProvider).speak(trimmed);

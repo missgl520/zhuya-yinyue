@@ -1,0 +1,77 @@
+{
+  "base": {
+    "male": "avatar_system/base_male.glb",
+    "female": "avatar_system/base_female.glb"
+  },
+  "hair": {
+    "male": [
+      "black_short",
+      "brown_short",
+      "blonde_short",
+      "black_long",
+      "grey_short"
+    ],
+    "female": [
+      "black_long",
+      "brown_bob",
+      "blonde_long",
+      "pink_bob",
+      "black_bun"
+    ]
+  },
+  "tops": {
+    "male": [
+      "tshirt_red",
+      "tshirt_blue",
+      "tshirt_white",
+      "tshirt_black",
+      "hoodie_grey",
+      "sweater_beige"
+    ],
+    "female": [
+      "tshirt_white",
+      "tshirt_pink",
+      "dress_pink",
+      "dress_black",
+      "hoodie_purple",
+      "sweater_beige"
+    ]
+  },
+  "bottoms": {
+    "male": [
+      "jeans_blue",
+      "jeans_black",
+      "pants_grey",
+      "pants_khaki",
+      "shorts_green"
+    ],
+    "female": [
+      "jeans_blue",
+      "skirt_red",
+      "skirt_black",
+      "shorts_green",
+      "pants_khaki"
+    ]
+  },
+  "shoes": {
+    "male": [
+      "sneaker_white",
+      "sneaker_black",
+      "boots_brown",
+      "boots_black"
+    ],
+    "female": [
+      "sneaker_white",
+      "sneaker_black",
+      "boots_brown",
+      "sandal_beige"
+    ]
+  },
+  "eye_colors": [
+    "brown",
+    "blue",
+    "green",
+    "black",
+    "grey"
+  ]
+}

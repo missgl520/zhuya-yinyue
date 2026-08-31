@@ -2,24 +2,27 @@
 // MiniMax 情感 TTS 服务
 //
 // 位于：core/services/mini_max_tts_service.dart
-// 职责：调用 MiniMax 新平台（platform.minimax.io）语音合成 API，
-//       把文字转成带性格的语音，替代原 Cartesia TTS。
+// 职责：调用 MiniMax 平台（api.minimax.io）语音合成 API，
+//       把文字转成带性格/情绪的语音，替代原 Cartesia TTS。
 //
 // 背景：
 //   通用 TTS（系统引擎）太机械，没有"灵魂"。
-//   MiniMax 新平台 TTS（speech-2.6-hd 等）中文韵律好、音色多，
-//   让竹笌的声音有性格。
+//   MiniMax 平台 TTS（speech-2.6-hd 等）中文韵律好、音色多，
+//   让竹笌的声音有性格、有情绪。
 //
-// 接入说明（新平台，区别于老平台 api.minimaxi.com）：
+// 接入说明：
 //   - 端点：https://api.minimax.io/v1/t2a_v2
 //   - 鉴权：Authorization: Bearer <API_KEY>（无需 GroupId，密钥自带账户归属）
 //   - 返回：data.audio 为 **hex 编码** 的音频（默认 mp3）
-//   - 密钥经 --dart-define=MINIMAX_API_KEY=xxx 注入，不写进源码/git
 //
-// 三种角色风格（MiniMax 官方中文音色）：
-//   gentle   → 甜美女声（日常聊天）
-//   playful  → 少女音色（撒娇/开心场景）
-//   wise     → 御姐音色（讲故事/正经话题）
+// 密钥来源（两种，优先级从高到低）：
+//   1. 运行时：设置页输入 → Hive('miniMaxApiKey') → configure(apiKey) 注入
+//   2. 编译期：--dart-define=MINIMAX_API_KEY=xxx 注入（无 UI 时的兜底）
+//   未配置任何 Key 时 speak() 返回 false，由上层降级到系统 TTS。
+//
+// 情绪映射（移植自 main 分支的情感 TTS）：
+//   speak(text, emotion: 'happy'/'sad'/...) 会按情绪选不同 voice_id + 语速；
+//   若不传 emotion 而传 persona，则走 gentle/playful/wise 角色音色。
 //
 // 费用注意：MiniMax 按字符计费，账户需有足够余额（status_code=1008 即余额不足）。
 //   已实现本地缓存，同一段文字只请求一次。
@@ -41,32 +44,73 @@ enum PersonaVoice {
   wise, // 沉稳御姐
 }
 
+/// MiniMax 情感标签 → API voice_id 映射（移植自 main 分支的 Sambert 情感音色）
+/// voice_id 来源于 MiniMax 控制台音色列表
+const Map<String, String> kEmotionVoiceMap = {
+  'happy': 'HappyBoy', // 活泼开朗
+  'sad': 'GentleGirl', // 温柔伤感
+  'shy': 'CuteGirl', // 害羞可爱
+  'cute': 'CuteBoy', // 活泼俏皮
+  'neutral': 'StableMale', // 平稳男声（默认）
+  'excited': 'CuteBoy', // 兴奋激动
+};
+
+/// MiniMax 情感标签 → 语速
+const Map<String, double> kEmotionSpeedMap = {
+  'happy': 1.15,
+  'sad': 0.85,
+  'shy': 0.90,
+  'cute': 1.10,
+  'neutral': 1.00,
+  'excited': 1.25,
+};
+
+/// 竹笌聊天情绪标签 → main 情感分类的别名映射
+/// 让后端返回的丰富情绪（joy / angry / ...）也能映射到对应音色
+const Map<String, String> kEmotionAlias = {
+  'joy': 'happy',
+  'proud': 'excited',
+  'curious': 'neutral',
+  'trust': 'neutral',
+  'angry': 'sad',
+  'fearful': 'sad',
+  'disgusted': 'sad',
+  'ashamed': 'shy',
+};
+
 /// MiniMax TTS 服务
 ///
 /// 用法示例：
 /// ```dart
 /// final tts = MiniMaxTTSService();
+/// await tts.configure(apiKey: 'xxx');            // 运行时注入密钥
+/// await tts.speak('你好呀！', emotion: 'happy');  // 带情绪朗读
 /// await tts.speak('你好呀！', persona: PersonaVoice.gentle);
 /// ```
 class MiniMaxTTSService {
   MiniMaxTTSService();
 
-  /// MiniMax 新平台语音合成端点
+  /// MiniMax 平台语音合成端点
   static const _apiUrl = 'https://api.minimax.io/v1/t2a_v2';
 
-  /// 默认模型（新平台最新 HD 模型，实时响应 + 超高音质）
-  /// 想更快可换 speech-2.6-turbo；想最新可换 speech-2.8-hd / speech-2.8-turbo
+  /// 默认模型（最新 HD 模型，实时响应 + 超高音质）
   static const String _model = 'speech-2.6-hd';
 
-  /// MiniMax API Key（生产用 --dart-define=MINIMAX_API_KEY=xxx 注入）。
+  /// MiniMax API Key。
+  /// 优先运行时 configure() 注入；缺省回退编译期 --dart-define。
   /// 留空表示未配置，speak() 会返回 false 让上层降级到系统 TTS。
-  static const String _apiKey = String.fromEnvironment(
+  String? _apiKey = const String.fromEnvironment(
     'MINIMAX_API_KEY',
     defaultValue: '',
   );
 
-  /// 是否已配置真实 API Key（未配置时上层应降级到系统 TTS）。
-  bool get isConfigured => _apiKey.isNotEmpty;
+  /// 是否已配置真实 API Key（运行时或编译期任一即可）。
+  bool get isConfigured => _apiKey != null && _apiKey!.isNotEmpty;
+
+  /// 运行时配置 API Key（从设置页读取后传入，覆盖编译期注入）
+  void configure({required String apiKey}) {
+    _apiKey = apiKey.trim();
+  }
 
   /// 角色 → 音色 ID 映射（MiniMax 官方中文系统音色，均已验证可用）
   static const _voiceIds = {
@@ -89,16 +133,35 @@ class MiniMaxTTSService {
     return cache;
   }
 
-  /// 生成文字的缓存 key（避免特殊字符做文件名）
-  String _cacheKey(String text, PersonaVoice persona) {
-    final raw = '${persona.name}_$text';
+  /// 生成文字的缓存 key（避免特殊字符做文件名；key 含 voiceId 以免不同音色串味）
+  String _cacheKey(String text, String voiceId) {
+    final raw = '${voiceId}_$text';
     return raw.hashCode.toRadixString(16);
+  }
+
+  /// 解析最终使用的 voice_id 与语速。
+  /// 规则：emotion 优先（含别名归并），其次 persona，最后默认温柔音色。
+  ({String voiceId, double speed}) _resolveVoice(
+    PersonaVoice? persona,
+    String? emotion,
+  ) {
+    final e = emotion?.trim();
+    if (e != null && e.isNotEmpty) {
+      final key = kEmotionAlias[e] ?? e;
+      final voiceId = kEmotionVoiceMap[key] ?? kEmotionVoiceMap['neutral']!;
+      final speed = kEmotionSpeedMap[key] ?? 1.0;
+      return (voiceId: voiceId, speed: speed);
+    }
+    final v = persona ?? _currentPersona;
+    return (voiceId: _voiceIds[v]!, speed: 1.0);
   }
 
   /// 文本转语音并播放
   ///
   /// [text]     要说的话
   /// [persona]  情感角色（gentle / playful / wise）
+  /// [emotion]  对话情绪标签（happy/sad/shy/cute/neutral/excited 及其别名），
+  ///            优先级高于 [persona]
   /// [cache]    是否使用缓存（默认 true）
   ///
   /// 返回 true 表示已成功播音（含缓存命中），false 表示失败，
@@ -106,13 +169,16 @@ class MiniMaxTTSService {
   Future<bool> speak(
     String text, {
     PersonaVoice? persona,
+    String? emotion,
     bool cache = true,
   }) async {
-    final voice = persona ?? _currentPersona;
+    final resolved = _resolveVoice(persona, emotion);
+    final voiceId = resolved.voiceId;
+    final speed = resolved.speed;
 
     // 1. 查缓存
     if (cache) {
-      final cachedFile = await _getCachedFile(text, voice);
+      final cachedFile = await _getCachedFile(text, voiceId);
       if (await cachedFile.exists()) {
         try {
           await _player.setFilePath(cachedFile.path);
@@ -125,12 +191,12 @@ class MiniMaxTTSService {
     }
 
     // 2. 调用 API（未配置 Key 时直接失败，触发上层降级）
-    final audioBytes = await _fetchTTS(text, voice);
+    final audioBytes = await _fetchTTS(text, voiceId, speed);
     if (audioBytes == null) return false;
 
     // 3. 写缓存
     if (cache) {
-      final file = await _getCachedFile(text, voice);
+      final file = await _getCachedFile(text, voiceId);
       try {
         await file.writeAsBytes(audioBytes);
       } catch (_) {
@@ -141,7 +207,9 @@ class MiniMaxTTSService {
     // 4. 播放（缓存命中时直接播文件，API 返回时用 StreamAudioSource）
     try {
       if (cache) {
-        await _player.setFilePath((await _getCachedFile(text, voice)).path);
+        await _player.setFilePath(
+          (await _getCachedFile(text, voiceId)).path,
+        );
       } else {
         await _player.setAudioSource(_BytesAudioSource(audioBytes));
       }
@@ -153,9 +221,9 @@ class MiniMaxTTSService {
   }
 
   /// 获取缓存文件路径
-  Future<File> _getCachedFile(String text, PersonaVoice persona) async {
+  Future<File> _getCachedFile(String text, String voiceId) async {
     final dir = await _cacheDir;
-    final key = _cacheKey(text, persona);
+    final key = _cacheKey(text, voiceId);
     return File('${dir.path}/$key.mp3');
   }
 
@@ -163,7 +231,7 @@ class MiniMaxTTSService {
   ///
   /// 返回 mp3 音频字节；任何失败（未配置 Key / 网络 / 余额不足 / 音色无效）
   /// 均返回 null，由上层静默降级到系统 TTS。
-  Future<Uint8List?> _fetchTTS(String text, PersonaVoice persona) async {
+  Future<Uint8List?> _fetchTTS(String text, String voiceId, double speed) async {
     // 未配置真实 Key 时直接失败，让上层降级到系统 TTS
     if (!isConfigured) return null;
     try {
@@ -175,8 +243,8 @@ class MiniMaxTTSService {
           'stream': false,
           'output_format': 'hex',
           'voice_setting': {
-            'voice_id': _voiceIds[persona],
-            'speed': 1,
+            'voice_id': voiceId,
+            'speed': speed,
             'vol': 1,
             'pitch': 0,
           },

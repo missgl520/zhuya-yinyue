@@ -156,6 +156,11 @@ flutter:
     - assets/vrm_test/zhuyu_avatar.glb
     # 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）
     - assets/vrm_test/dog_avatar.glb
+    # 角色分部位配色素材（从 main 分支移植，供 3D 角色换色/贴图使用）
+    # 注：本环境 Flutter 不递归子目录，colors/ 与 iris/ 必须显式列出
+    - assets/vrm_test/avatar_system/
+    - assets/vrm_test/avatar_system/colors/
+    - assets/vrm_test/avatar_system/iris/
 
 # ═══════════════════════════════════════════════════════
 # 依赖覆盖：model_viewer_plus 本地补丁副本

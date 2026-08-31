@@ -25,3 +25,10 @@ final ttsModeProvider = StateProvider<String>((ref) {
   final box = Hive.box('settings');
   return box.get('ttsMode', defaultValue: 'system') as String;
 });
+
+/// MiniMax TTS API Key（用户在设置页输入，存 Hive 'miniMaxApiKey'）。
+/// 为空表示未配置，聊天朗读时 MiniMax 分支会降级到系统 TTS。
+final miniMaxApiKeyProvider = StateProvider<String>((ref) {
+  final box = Hive.box('settings');
+  return box.get('miniMaxApiKey', defaultValue: '') as String;
+});

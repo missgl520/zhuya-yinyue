@@ -59,6 +59,11 @@ class LocalEncryption {
     return _cachedKey!;
   }
 
+  /// 获取 Hive AES 加密密钥（32 字节），复用上述 AES 密钥体系，
+  /// 避免每个存储层各管各的密钥导致密钥管理碎片化。
+  /// 返回值可直接传给 Hive.openBox(..., encryptionCipher: HiveAesCipher(key))。
+  static Future<Uint8List> getHiveKey() => _getKey();
+
   /// 单次 AES-256-CBC（PKCS7）加/解密
   static Uint8List _aes(
     Uint8List key,
