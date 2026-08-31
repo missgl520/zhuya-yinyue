@@ -14,13 +14,29 @@
 //   - 避免循环依赖（legacy 和新架构通过这个文件隔离）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// 导出旧版 legacy providers（Hive、ASR、TTS、Live2D 等历史遗留）
-// 路径：presentation/providers/ → lib/providers/
-export '../../providers/app_providers_legacy.dart';
+// ━ 全局状态 Providers（2026-08-31 已从 lib/providers/app_providers_legacy.dart 拆分迁移）━
 
-// 导出新版状态管理（对话状态机、情绪、好感度）
-// 注意：隐藏 currentEmotionProvider 以避免与 legacy 冲突
-//   legacy 有 currentEmotionProvider（旧版 EmotionResult 类型）
-//   chat_provider 有 currentEmotionProvider（新版本 Emotion 类型）
-//   旧页面用 legacy 版，新页面如果需要新版 emotion 用 chat_provider
+// 后端配置导出（原 legacy 中 export；注意本文件位于 presentation/providers/，需向上两级到 lib/）
+export '../../core/config.dart' show BackendConfig;
+// 数据模型
+export 'models.dart' show Message, AffinityData, EmotionResult, ZhuaStatus;
+// 主题
+export 'theme_provider.dart';
+// 用户设置
+export 'settings_provider.dart';
+// 服务单例
+export 'services_provider.dart';
+// 消息列表
+export 'messages_provider.dart';
+// 其它 UI 状态
+export 'ui_state_provider.dart';
+// 情绪（Legacy 版 EmotionResult）
+export 'emotion_provider.dart';
+// 好感度（Legacy 版 AffinityData）
+export 'affinity_provider.dart';
+
+// 新版状态管理（对话状态机、情绪、好感度）
+// 隐藏与 legacy 同名的 provider，避免冲突：
+//   legacy 的 emotion_provider/affinity_provider 用 EmotionResult/AffinityData 类型
+//   chat_provider 用 Emotion/Affinity 类型；旧页面走 legacy 版
 export 'chat_provider.dart' hide currentEmotionProvider, affinityProvider;

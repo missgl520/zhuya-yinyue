@@ -115,6 +115,7 @@ dependencies:
   # pointycastle 已随 livekit_client 引入（^4），显式声明以保证可用
   pointycastle: ^4.0.0
   flutter_secure_storage: ^9.2.0
+  iconmind_flutter: ^0.6.0
 
 dev_dependencies:
   # Flutter 测试框架

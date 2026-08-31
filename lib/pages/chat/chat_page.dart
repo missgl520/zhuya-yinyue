@@ -16,10 +16,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../settings/settings_sheet.dart';
 import '../settings/menu_panel.dart';
-import '../../providers/app_providers_legacy.dart' as old_msg;
 import '../../presentation/providers/app_providers.dart' as old_providers;
 import '../../domain/entities/entities.dart' as entities;
-import '../../presentation/providers/app_providers.dart' as new_providers;
 import '../../presentation/providers/chat_provider.dart';
 import '../../domain/entities/emotion.dart';
 import '../../widgets/live2d_controller.dart';
@@ -201,7 +199,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
     if (text.isEmpty) return;
 
     // 旧 provider（Hive 持久化兼容）
-    final userMsg = old_msg.Message(
+    final userMsg = old_providers.Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       role: 'user',
       content: text,
@@ -1167,7 +1165,7 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
       child = const VrmAvatarView();
     } else {
       final live2dCtrl = ref.watch(old_providers.live2dControllerProvider);
-      final lipSync = ref.watch(new_providers.lipSyncStreamProvider);
+      final lipSync = ref.watch(old_providers.lipSyncStreamProvider);
       lipSync.whenData((mouth) {
         live2dCtrl.viewController.setParameter(
           'ParamMouthOpenY',
