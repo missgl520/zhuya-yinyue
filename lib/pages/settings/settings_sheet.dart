@@ -424,13 +424,101 @@ class _SoundContent extends ConsumerWidget {
                         ),
                       ),
                     ],
-                  ),
+                    // MiniMax API Key 输入（选 minimax 时显示）
+                    if (ttsMode == 'minimax') ...[
+                      const SizedBox(height: 10),
+                      _MiniMaxKeyField(),
+                    ],
+                  ],
                 ],
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+}
+
+// ── MiniMax API Key 输入组件 ──────────────────────────────
+class _MiniMaxKeyField extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<_MiniMaxKeyField> createState() => _MiniMaxKeyFieldState();
+}
+
+class _MiniMaxKeyFieldState extends ConsumerState<_MiniMaxKeyField> {
+  final _ctrl = TextEditingController();
+  bool _saving = false;
+  bool _saved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl.text = Hive.box('settings').get('miniMaxApiKey', defaultValue: '') as String;
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final key = _ctrl.text.trim();
+    setState(() => _saving = true);
+    await Hive.box('settings').put('miniMaxApiKey', key);
+    ref.read(settingsProvider.notifier).setMiniMaxApiKey(key);
+    setState(() { _saving = false; _saved = true; });
+    await Future.delayed(const Duration(seconds: 2));
+    if (mounted) setState(() => _saved = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'MiniMax API Key',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.grey),
+        ),
+        const SizedBox(height: 6),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _ctrl,
+              obscureText: true,
+              decoration: InputDecoration(
+                hintText: 'sk-...',
+                hintStyle: const TextStyle(fontSize: 13, color: Colors.grey),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              style: const TextStyle(fontSize: 13),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 64,
+            child: TextButton(
+              onPressed: _saving ? null : _save,
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                backgroundColor: const Color(0xFF4a7a52),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              child: Text(_saving ? '…' : (_saved ? '✓' : '保存'), style: const TextStyle(fontSize: 13)),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 4),
+        Text(
+          '申请地址: minimaxi.com → 用户中心 → API密钥',
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+        ),
+      ],
     );
   }
 }
