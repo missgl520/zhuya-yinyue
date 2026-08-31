@@ -13,12 +13,12 @@
 
 import 'dart:async';
 import 'dart:convert';
+
 import 'package:http/http.dart' as http;
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../security/local_encryption.dart';
 import '../auth/client_auth.dart';
-import '../../presentation/providers/app_providers.dart';
 
 // ━━━━━━━━━━━━━━━ 后端接口（HTTP） ━━━━━━━━━━━━━━━
 

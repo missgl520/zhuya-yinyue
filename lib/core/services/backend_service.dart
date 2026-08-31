@@ -396,7 +396,7 @@ class BackendService {
 }
 
 /// 好感度数据（BackendService 内部用）
-/// 命名为 BackendAffinityData 避免与 providers/app_providers_legacy.dart 的 AffinityData 冲突
+/// 命名为 BackendAffinityData 避免与其他 AffinityData 冲突
 class BackendAffinityData {
   final double trust;
   final double intimacy;

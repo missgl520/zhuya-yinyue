@@ -4,8 +4,8 @@
 // 位于：presentation/providers/settings_provider.dart
 // 职责：管理主题、TTS、ASR 等用户设置（持久化到 Hive）
 //
-// 迁移自：providers/app_providers_legacy.dart
-// 旧代码不再引用 legacy，本文件是唯一入口。
+// 迁移自：原 lib/providers/app_providers.dart（已删除）
+// 旧代码不再引用，本文件是唯一入口。
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -167,7 +167,7 @@ final asrListeningProvider = Provider<bool>((ref) {
 final asrResultProvider = StateProvider<String?>((ref) => null);
 
 // ════════════════════════════════════════════════════════════
-// Services（只读单例，保留自 legacy）
+// Services（只读单例，保留自原实现）
 // ════════════════════════════════════════════════════════════
 
 final ttsServiceProvider = Provider<TtsService>((ref) {

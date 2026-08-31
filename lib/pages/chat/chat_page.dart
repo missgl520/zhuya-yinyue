@@ -7,7 +7,7 @@
 // 状态机：idle → thinking → writing → speaking → idle
 //
 // 迁移记录（2026-08-31）：
-//   - 移除 app_providers_legacy.dart 引用，全面使用新架构
+//   - 移除旧 providers 文件引用，全面使用新架构
 //   - 主题/TTS/ASR → settings_provider.dart
 //   - 消息管理 → ChatNotifier（chat_provider.dart）
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
