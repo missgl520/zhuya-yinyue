@@ -42,119 +42,124 @@ class SettingsSheet extends ConsumerWidget {
     final isDark = ref.watch(themeProvider);
 
     return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E2E) : Colors.white,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // ── 拖拽条 ──
-            _dragHandle,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // ── 拖拽条 ──
+              _dragHandle,
 
-            // ── 菜单项列表 ──
-            _MenuItem(
-              title: '关于竹笌',
-              subtitle: '版本与介绍',
-              icon: Icons.info_outline,
-              expanded: expanded == 'about',
-              onTap: () => _toggle(ref, 'about'),
-              children: const _AboutContent(),
-            ),
+              // ── 菜单项列表 ──
+              _MenuItem(
+                title: '关于竹笌',
+                subtitle: '版本与介绍',
+                icon: Icons.info_outline,
+                expanded: expanded == 'about',
+                onTap: () => _toggle(ref, 'about'),
+                children: const _AboutContent(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '声音设置',
-              subtitle: '语音播报与音色',
-              icon: Icons.volume_up_outlined,
-              expanded: expanded == 'sound',
-              onTap: () => _toggle(ref, 'sound'),
-              children: const _SoundContent(),
-            ),
+              _MenuItem(
+                title: '声音设置',
+                subtitle: '语音播报与音色',
+                icon: Icons.volume_up_outlined,
+                expanded: expanded == 'sound',
+                onTap: () => _toggle(ref, 'sound'),
+                children: const _SoundContent(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '语音设置',
-              subtitle: '识别引擎与唤醒词',
-              icon: Icons.mic_outlined,
-              expanded: expanded == 'voice',
-              onTap: () => _toggle(ref, 'voice'),
-              children: const _VoiceContent(),
-            ),
+              _MenuItem(
+                title: '语音设置',
+                subtitle: '识别引擎与唤醒词',
+                icon: Icons.mic_outlined,
+                expanded: expanded == 'voice',
+                onTap: () => _toggle(ref, 'voice'),
+                children: const _VoiceContent(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '模型设置',
-              subtitle: 'AI 模型来源',
-              icon: Icons.smart_toy_outlined,
-              expanded: expanded == 'model',
-              onTap: () => _toggle(ref, 'model'),
-              children: const _ModelContent(),
-            ),
+              _MenuItem(
+                title: '模型设置',
+                subtitle: 'AI 模型来源',
+                icon: Icons.smart_toy_outlined,
+                expanded: expanded == 'model',
+                onTap: () => _toggle(ref, 'model'),
+                children: const _ModelContent(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '隐私政策',
-              subtitle: '查看隐私条款',
-              icon: Icons.privacy_tip_outlined,
-              expanded: false,
-              onTap: () => context.push('/legal?type=privacy'),
-              children: const SizedBox.shrink(),
-            ),
+              _MenuItem(
+                title: '隐私政策',
+                subtitle: '查看隐私条款',
+                icon: Icons.privacy_tip_outlined,
+                expanded: false,
+                onTap: () => context.push('/legal?type=privacy'),
+                children: const SizedBox.shrink(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '用户协议',
-              subtitle: '查看用户协议',
-              icon: Icons.description_outlined,
-              expanded: false,
-              onTap: () => context.push('/legal?type=terms'),
-              children: const SizedBox.shrink(),
-            ),
+              _MenuItem(
+                title: '用户协议',
+                subtitle: '查看用户协议',
+                icon: Icons.description_outlined,
+                expanded: false,
+                onTap: () => context.push('/legal?type=terms'),
+                children: const SizedBox.shrink(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '个人信息收集清单',
-              subtitle: '我们收集哪些信息',
-              icon: Icons.list_alt_outlined,
-              expanded: false,
-              onTap: () => context.push('/info?type=pi-collection'),
-              children: const SizedBox.shrink(),
-            ),
+              _MenuItem(
+                title: '个人信息收集清单',
+                subtitle: '我们收集哪些信息',
+                icon: Icons.list_alt_outlined,
+                expanded: false,
+                onTap: () => context.push('/info?type=pi-collection'),
+                children: const SizedBox.shrink(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '与第三方共享清单',
-              subtitle: '信息共享给哪些服务商',
-              icon: Icons.share_outlined,
-              expanded: false,
-              onTap: () => context.push('/info?type=third-party-sharing'),
-              children: const SizedBox.shrink(),
-            ),
+              _MenuItem(
+                title: '与第三方共享清单',
+                subtitle: '信息共享给哪些服务商',
+                icon: Icons.share_outlined,
+                expanded: false,
+                onTap: () => context.push('/info?type=third-party-sharing'),
+                children: const SizedBox.shrink(),
+              ),
 
-            _MenuDivider(isDark: isDark),
+              _MenuDivider(isDark: isDark),
 
-            _MenuItem(
-              title: '版本介绍',
-              subtitle: '功能与版本历史',
-              icon: Icons.new_releases_outlined,
-              expanded: false,
-              onTap: () => context.push('/info?type=version-intro'),
-              children: const SizedBox.shrink(),
-            ),
+              _MenuItem(
+                title: '版本介绍',
+                subtitle: '功能与版本历史',
+                icon: Icons.new_releases_outlined,
+                expanded: false,
+                onTap: () => context.push('/info?type=version-intro'),
+                children: const SizedBox.shrink(),
+              ),
 
-            // 底部安全距离
-            const SizedBox(height: 12),
-          ],
+              // 底部安全距离
+              const SizedBox(height: 12),
+            ],
+          ),
         ),
       ),
     );
