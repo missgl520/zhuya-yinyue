@@ -1,9 +1,9 @@
 // 3D 渲染管线验证入口（临时 spike，不影响主 app 的 Live2D）。
 // 构建：flutter build apk --debug --target lib/vrm_test_main.dart
 // 目的：确认 model_viewer_plus 在本模拟器能渲染 GLB 并自动播放内嵌走路动画
-//      （真膝盖弯曲、脚离地），为后续接用户 VRoid .vrm 铺路。
+//      （真膝盖弯曲、脚离地），并验证 4 个角色资产切换正常。
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:zhuyapp/widgets/vrm_avatar_view.dart';
 
 void main() => runApp(const VrmTestApp());
 
@@ -16,36 +16,33 @@ class VrmTestApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         backgroundColor: const Color(0xFFEDF7F0),
-        body: Stack(
-          children: [
-            const Positioned.fill(
-              child: ModelViewer(
-                src: 'assets/vrm_test/CesiumMan.glb',
-                alt: 'CesiumMan walk test',
-                autoPlay: true,
-                cameraControls: true,
-                cameraOrbit: '0deg 80deg 3m',
-                cameraTarget: '0m 1m 0m',
-                fieldOfView: '35deg',
-                backgroundColor: Color(0xFFEDF7F0),
+        body: SafeArea(
+          child: Stack(
+            children: const [
+              Positioned.fill(
+                // 复用主 app 的 VrmAvatarView：默认女角色 + 显示角色切换条
+                child: VrmAvatarView(
+                  role: VrmRole.girl,
+                  showRoleSwitch: true,
+                ),
               ),
-            ),
-            const Positioned(
-              top: 24,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Text(
-                  'VRM TEST — CesiumMan (walk)',
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
+              Positioned(
+                bottom: 24,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Text(
+                    'VRM TEST — 角色切换 (zhuyu / dog / girl / boy)',
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

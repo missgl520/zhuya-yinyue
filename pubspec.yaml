@@ -156,6 +156,9 @@ flutter:
     - assets/vrm_test/zhuyu_avatar.glb
     # 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）
     - assets/vrm_test/dog_avatar.glb
+    # 图生 3D 生成的竹笌音乐狗男女角色（腾讯混元 3D，PBR 材质，2026-08-31）
+    - assets/vrm_test/char_girl.glb
+    - assets/vrm_test/char_boy.glb
     # 角色分部位配色素材（从 main 分支移植，供 3D 角色换色/贴图使用）
     # 注：本环境 Flutter 不递归子目录，colors/ 与 iris/ 必须显式列出
     - assets/vrm_test/avatar_system/
