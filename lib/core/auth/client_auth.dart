@@ -22,11 +22,17 @@ class ClientAuth {
 
   static final ClientAuth instance = ClientAuth._();
 
-  /// 必须与后端 ZHUYU_API_KEY 一致；生产环境用 --dart-define 覆盖。
-  static const String apiKey = String.fromEnvironment(
-    'ZHUYU_API_KEY',
-    defaultValue: 'zhuyu-dev-key-change-me',
-  );
+  /// 必须与后端 ZHUYU_API_KEY 一致；生产环境用 --dart-define 注入。
+  /// 不再提供误导性默认值：缺失时直接抛错，避免「看似能跑实则用了 dev key」。
+  static String get apiKey {
+    const key = String.fromEnvironment('ZHUYU_API_KEY', defaultValue: '');
+    if (key.isEmpty) {
+      throw StateError(
+        '缺少后端密钥：请通过 --dart-define=ZHUYU_API_KEY=<与后端 .env 一致的密钥> 注入',
+      );
+    }
+    return key;
+  }
 
   String? _cachedUserId;
 
