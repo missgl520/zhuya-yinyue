@@ -40,8 +40,9 @@ class MessagesNotifier extends StateNotifier<List<Message>> {
   /// 更新消息内容（用于流式输出时逐字追加）
   void updateMessage(String id, String content, {bool? isStreaming}) {
     state = state.map((m) {
-      if (m.id == id)
+      if (m.id == id) {
         return m.copyWith(content: content, isStreaming: isStreaming);
+      }
       return m;
     }).toList();
     // Hive 里也更新

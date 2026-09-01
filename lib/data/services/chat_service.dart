@@ -68,7 +68,7 @@ class ChatService {
   /// [onDone]       回复结束回调
   /// [onError]      错误回调
   ///
-  /// 返回 Future<bool>：true=成功，false=失败
+  /// 返回 `Future<bool>`：true=成功，false=失败
   Future<bool> streamChat({
     required String message,
     required List<Message> history,
@@ -117,9 +117,9 @@ class ChatService {
       // ── 第3步：逐行解析 SSE 流 ────────────────────────
       // SSE 格式说明：
       //   "event: text\ndata: {...}\n\n"
-      //   我们把 event: 存到 _currentEvent，\n\n 表示一条完整消息
-      String _currentEvent = 'text';
-      StringBuffer _textBuffer = StringBuffer();
+      //   我们把 event: 存到 currentEvent，\n\n 表示一条完整消息
+      String currentEvent = 'text';
+      StringBuffer textBuffer = StringBuffer();
 
       final stream = resp.data.stream as Stream<List<int>>;
 
@@ -132,33 +132,33 @@ class ChatService {
           if (trimmed.isEmpty) {
             // \n\n 分隔符，一条事件结束了
             _dispatch(
-              _currentEvent,
-              _textBuffer.toString(),
+              currentEvent,
+              textBuffer.toString(),
               onText,
               onEmotion,
               onAffinity,
               onError,
             );
-            _textBuffer.clear();
-            _currentEvent = 'text'; // 重置默认事件类型
+            textBuffer.clear();
+            currentEvent = 'text'; // 重置默认事件类型
             continue;
           }
 
           if (trimmed.startsWith('event:')) {
             // 事件类型行：event: emotion
-            _currentEvent = trimmed.substring(6).trim();
+            currentEvent = trimmed.substring(6).trim();
           } else if (trimmed.startsWith('data:')) {
             // 数据行：data: {"text": "..."}
-            _textBuffer.write(trimmed.substring(5));
+            textBuffer.write(trimmed.substring(5));
           }
         }
       }
 
       // 流结束，最后一条事件可能没有 \n\n
-      if (_textBuffer.isNotEmpty) {
+      if (textBuffer.isNotEmpty) {
         _dispatch(
-          _currentEvent,
-          _textBuffer.toString(),
+          currentEvent,
+          textBuffer.toString(),
           onText,
           onEmotion,
           onAffinity,

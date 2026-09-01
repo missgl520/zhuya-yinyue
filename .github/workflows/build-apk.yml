@@ -3,7 +3,7 @@ name: Build APK
 
 on:
   push:
-    branches: [main]
+    branches: [qianduan]
   workflow_dispatch:
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.44.6'
+          flutter-version: '3.47.2'
           channel: 'stable'
 
       - name: Setup Java
@@ -44,6 +44,9 @@ jobs:
         run: |
           flutter clean
           flutter pub get
+
+      - name: Analyze (static checks)
+        run: flutter analyze
 
       # 修复 flutter_live2d 硬编码的 CMake 3.10.2 版本（AGP 9 需要更高版本）
       - name: Patch flutter_live2d CMake version

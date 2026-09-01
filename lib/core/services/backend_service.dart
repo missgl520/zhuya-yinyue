@@ -294,10 +294,10 @@ class BackendService {
   Future<bool> updateLyrics(int id, {String? title, String? content, List<String>? tags, String? mood}) async {
     try {
       final resp = await _dio.put('/lyrics/$id', data: {
-        if (title != null) 'title': title,
-        if (content != null) 'content': content,
-        if (tags != null) 'tags': tags,
-        if (mood != null) 'mood': mood,
+        'title': ?title,
+        'content': ?content,
+        'tags': ?tags,
+        'mood': ?mood,
       });
       return resp.statusCode == 200;
     } catch (_) {
@@ -324,7 +324,7 @@ class BackendService {
     try {
       final resp = await _dio.post('/music/generate', data: {
         'prompt': prompt,
-        if (lyricsId != null) 'lyrics_id': lyricsId,
+        'lyrics_id': ?lyricsId,
         'style': style,
         'title': title,
       });

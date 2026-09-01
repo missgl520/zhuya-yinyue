@@ -17,6 +17,10 @@ analyzer:
     - vendor/**/example/**
     - vendor/**/.cxx/**
     - vendor/**/build/**
+    # packages/ 是 model_viewer_plus 的本地补丁副本（第三方代码，非竹笌代码）。
+    # 它自带 analysis_options.yaml 引用了项目里不存在的 carapacik_lints，
+    # 不排除会让 `dart analyze` 报 include_file_not_found 误报。
+    - packages/**
     - build/**
     - android/**
     - ios/**
@@ -24,6 +28,11 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+
+  errors:
+    # just_audio 的流式音频 API（StreamAudioSource / StreamAudioResponse）目前标记为实验性，
+    # 但 TTS 服务已稳定依赖它，且短期内无替代方案。忽略该告警，避免 CI 因第三方 API 状态而失败。
+    experimental_member_use: ignore
 
 linter:
   # The lint rules applied to this project can be customized in the

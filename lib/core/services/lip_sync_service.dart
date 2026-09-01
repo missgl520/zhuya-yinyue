@@ -67,9 +67,6 @@ class LipSyncService {
       StreamController<double>.broadcast();
   Stream<double> get mouthStream => _mouthController.stream;
 
-  /// 嘴型值输出流（别名，方便 legacy 兼容）
-  Stream<double> get volumeStream => _mouthController.stream;
-
   Timer? _animationTimer;
 
   /// 开始唇形同步

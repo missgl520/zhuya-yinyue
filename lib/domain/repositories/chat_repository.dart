@@ -93,7 +93,7 @@ abstract class ChatRepository {
   ///   history     历史消息（用于上下文连贯）
   ///   systemPrompt 角色设定（可选，覆盖默认人格）
   ///
-  /// 返回：Stream<ChatEvent>
+  /// 返回：`Stream<ChatEvent>`
   ///   异步流，后端推送 token 时立即下发，不需要等待完整回复
   Stream<ChatEvent> sendMessageStream({
     required String message,
