@@ -1,13 +1,13 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 3D 角色独立全屏页（二级程序）
+// 3D 角色独立全屏页
 //
-// 从聊天页顶栏中间的"3D 角色"入口 push 进入，展示可旋转/缩放的 3D 竹笌 角色。
-// 与聊天页的拖拽 overlay 共用 VrmAvatarView（ModelViewer），走路动画 autoplay。
+// 从聊天页顶栏中间的"3D 角色"入口 push 进入，展示可旋转/缩放的 3D 竹笌角色。
+// 与聊天页的拖拽 overlay 共用 AvatarViewer（WebView+Three.js），走路动画 autoplay。
 // 返回：左上角返回按钮（Navigator.pop，回到 /chat）。
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter/material.dart';
-import '../../widgets/vrm_avatar_view.dart';
+import '../../widgets/avatar_viewer.dart';
 
 class AvatarFullscreenPage extends StatelessWidget {
   const AvatarFullscreenPage({super.key});
@@ -18,8 +18,8 @@ class AvatarFullscreenPage extends StatelessWidget {
       backgroundColor: const Color(0xFFEDF7F0),
       body: Stack(
         children: [
-          // 3D 角色占满全屏（ModelViewer 支持拖动旋转 + 滚轮缩放 + autoplay 走路）
-          const Positioned.fill(child: VrmAvatarView()),
+          // 3D 角色占满全屏（WebView+Three.js 换装系统，支持拖动旋转+缩放）
+          const Positioned.fill(child: AvatarViewer()),
 
           // 左上角返回按钮
           SafeArea(
