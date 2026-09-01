@@ -23,6 +23,9 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/backend_service.dart';
 import '../../widgets/app_icon.dart';
 import 'package:flutter_live2d/flutter_live2d.dart';
+import 'widgets/pet_status_card.dart';
+import 'widgets/pet_interact_card.dart';
+import 'widgets/pet_music_card.dart';
 import '../../widgets/live2d_controller.dart';
 
 /// 音乐狗子主页
@@ -296,13 +299,13 @@ class _PetPageState extends State<PetPage> with TickerProviderStateMixin {
               _buildPetDisplay(),
               const SizedBox(height: AppTheme.space4),
               // 状态面板
-              _buildStatusPanel(),
+              PetStatusCard(petState: _petState),
               const SizedBox(height: AppTheme.space4),
               // 交互按钮
-              _buildInteractPanel(),
+              PetInteractCard(onAction: _interact, pressedAction: _pressedAction),
               const SizedBox(height: AppTheme.space4),
               // 音乐创作入口
-              _buildMusicPanel(),
+              PetMusicCard(onTap: (route) => context.push(route)),
             ],
           ),
           // 上层：3D 宠物（小容器 + 全屏无规则运动，容器小所以看不到方框）
@@ -485,215 +488,6 @@ class _PetPageState extends State<PetPage> with TickerProviderStateMixin {
                 ),
               ],
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatusPanel() {
-    final stats = [
-      ('能量', (_petState['energy'] ?? 0).toDouble(), AppTheme.accent, AppIconName.zap),
-      ('羁绊', (_petState['bond'] ?? 0).toDouble(), AppTheme.sun, AppIconName.heart),
-      ('饥饿', (_petState['hunger'] ?? 0).toDouble(), AppTheme.ember, AppIconName.disc),
-      ('快乐', (_petState['happiness'] ?? 0).toDouble(), AppTheme.success, AppIconName.smile),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.space4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.border.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('状态', style: TextStyle(fontSize: AppTheme.textMd, fontWeight: FontWeight.w600, color: AppTheme.fg)),
-          const SizedBox(height: AppTheme.space3),
-          ...stats.map((s) => Padding(
-            padding: const EdgeInsets.only(bottom: AppTheme.space3),
-            child: _buildStatBar(s.$1, s.$2, s.$3, s.$4),
-          )),
-          // 经验值
-          _buildExpBar(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatBar(String label, double value, Color color, AppIconName icon) {
-    return Row(
-      children: [
-        AppIcon(name: icon, size: AppIconSize.xs, color: color),
-        const SizedBox(width: AppTheme.space2),
-        SizedBox(width: 40, child: Text(label, style: TextStyle(fontSize: AppTheme.textXs, color: AppTheme.muted))),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            child: LinearProgressIndicator(
-              value: value.clamp(0, 100) / 100,
-              backgroundColor: AppTheme.surfaceSunken,
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-              minHeight: 8,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppTheme.space2),
-        SizedBox(width: 36, child: Text('${value.toInt()}', style: TextStyle(fontSize: AppTheme.textXs, color: AppTheme.fg2), textAlign: TextAlign.right)),
-      ],
-    );
-  }
-
-  Widget _buildExpBar() {
-    final exp = (_petState['exp'] ?? 0).toInt();
-    final level = (_petState['level'] ?? 1).toInt();
-    final need = level * 100;
-    return Row(
-      children: [
-        const AppIcon(name: AppIconName.star, size: AppIconSize.xs, color: AppTheme.sun),
-        const SizedBox(width: AppTheme.space2),
-        const SizedBox(width: 40, child: Text('经验', style: TextStyle(fontSize: AppTheme.textXs, color: AppTheme.muted))),
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppTheme.radiusSm),
-            child: LinearProgressIndicator(
-              value: (exp % need) / need,
-              backgroundColor: AppTheme.surfaceSunken,
-              valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.sun),
-              minHeight: 8,
-            ),
-          ),
-        ),
-        const SizedBox(width: AppTheme.space2),
-        SizedBox(width: 36, child: Text('$exp/$need', style: TextStyle(fontSize: AppTheme.textXs, color: AppTheme.fg2), textAlign: TextAlign.right)),
-      ],
-    );
-  }
-
-  Widget _buildInteractPanel() {
-    final actions = [
-      ('喂食', AppIconName.disc, AppTheme.sun, 'feed'),
-      ('玩耍', AppIconName.sparkles, AppTheme.accent, 'play'),
-      ('抚摸', AppIconName.heart, AppTheme.ember, 'pet'),
-      ('对话', AppIconName.messageCircle, AppTheme.info, 'talk'),
-      ('睡觉', AppIconName.moon, AppTheme.muted, 'sleep'),
-    ];
-
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.space4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.border.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('互动', style: TextStyle(fontSize: AppTheme.textMd, fontWeight: FontWeight.w600, color: AppTheme.fg)),
-          const SizedBox(height: AppTheme.space3),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: actions.map((a) => _buildInteractButton(a.$1, a.$2, a.$3, a.$4)).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInteractButton(String label, AppIconName icon, Color color, String action) {
-    final isPressed = _pressedAction == action;
-    return GestureDetector(
-      onTap: () => _interact(action),
-      child: AnimatedScale(
-        scale: isPressed ? 0.88 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: Column(
-          children: [
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isPressed ? color.withValues(alpha: 0.25) : color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-                border: isPressed ? Border.all(color: color, width: 1.5) : null,
-              ),
-              child: Center(child: AppIcon(name: icon, size: AppIconSize.sm, color: color)),
-            ),
-            const SizedBox(height: AppTheme.space1),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: AppTheme.textXs,
-                color: isPressed ? color : AppTheme.fg2,
-                fontWeight: isPressed ? FontWeight.w600 : FontWeight.w400,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMusicPanel() {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.space4),
-      decoration: BoxDecoration(
-        color: AppTheme.surface.withValues(alpha: 0.85),
-        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.border.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('音乐创作', style: TextStyle(fontSize: AppTheme.textMd, fontWeight: FontWeight.w600, color: AppTheme.fg)),
-          const SizedBox(height: AppTheme.space3),
-          _buildMusicEntry('生成音乐', '用歌词或灵感创作一首新歌', AppIconName.music, AppTheme.ember, () {
-            context.push('/pet/library');
-          }),
-          const SizedBox(height: AppTheme.space2),
-          _buildMusicEntry('歌词库', '管理你的歌词创作', AppIconName.fileText, AppTheme.accent, () {
-            context.push('/pet/library');
-          }),
-          const SizedBox(height: AppTheme.space2),
-          _buildMusicEntry('歌曲库', '收听已生成的歌曲', AppIconName.headphones, AppTheme.sun, () {
-            context.push('/pet/library');
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMusicEntry(String title, String desc, AppIconName icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(AppTheme.space3),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(AppTheme.radius),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.15), shape: BoxShape.circle),
-              child: Center(child: AppIcon(name: icon, size: AppIconSize.sm, color: color)),
-            ),
-            const SizedBox(width: AppTheme.space3),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: TextStyle(fontSize: AppTheme.textSm, fontWeight: FontWeight.w500, color: AppTheme.fg)),
-                  Text(desc, style: TextStyle(fontSize: AppTheme.textXs, color: AppTheme.muted)),
-                ],
-              ),
-            ),
-            const AppIcon(name: AppIconName.chevronRight, size: AppIconSize.xs, color: AppTheme.muted),
           ],
         ),
       ),
