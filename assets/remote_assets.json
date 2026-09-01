@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://github.com/missgl520/zhuya-yinyue/releases/download/vrm-assets",
+  "glbs": {
+    "zhuyu_avatar": "zhuyu_avatar.glb",
+    "dog_avatar": "dog_avatar.glb",
+    "char_girl": "char_girl.glb",
+    "char_boy": "char_boy.glb",
+    "CesiumMan": "CesiumMan.glb"
+  }
+}

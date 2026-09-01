@@ -11,6 +11,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/sync/sync_engine.dart';
 import 'core/security/local_encryption.dart';
+import 'core/services/remote_asset_manager.dart';
 import 'presentation/providers/app_providers.dart';
 
 /// 打开受信任 Hive box，失败时回退到无加密（兼容老设备/旧数据）。
@@ -33,6 +34,9 @@ Future<Box> _openBox(String name, {Uint8List? encryptionKey}) async {
 void main() async {
   // Flutter 异步初始化必须调用
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 初始化远程资产管家（读取 GLB manifest，运行时按需从 release 下载 3D 角色）
+  await RemoteAssetManager.instance.init();
 
   // 初始化 Hive 本地存储（类 IndexedDB，用于持久化）
   await Hive.initFlutter();

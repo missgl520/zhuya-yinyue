@@ -24,26 +24,21 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:model_viewer_plus/model_viewer_plus.dart';
+import 'package:zhuyapp/core/services/remote_asset_manager.dart';
 
 /// 是否启用 3D 人形（true=用 model_viewer_plus 渲染 GLB；false=用旧 Live2D）。
 const bool kUseVrmAvatar = true;
 
-/// 程序化生成的竹笌 3D 少年人形（脚本生成，分部位配色 + 走路动画）。
-const String kUserAvatarAsset = 'assets/vrm_test/zhuyu_avatar.glb';
-
-/// 程序化生成的音乐狗子 3D 宠物（圆头+垂耳+身体+四条腿+尾巴，走路+摇尾巴）。
-const String kDogAvatarAsset = 'assets/vrm_test/dog_avatar.glb';
-
-/// 图生 3D 生成的竹笌音乐狗「女」角色（腾讯混元 3D，单视图重建，2026-08-31）。
-const String kGirlAvatarAsset = 'assets/vrm_test/char_girl.glb';
-
-/// 图生 3D 生成的竹笌音乐狗「男」角色（同上）。
-const String kBoyAvatarAsset = 'assets/vrm_test/char_boy.glb';
-
-/// 占位角色（用户还没放动漫角色时用，避免灰色测试人偶太违和可换 Fox 等）。
-const String kFallbackAvatarAsset = 'assets/vrm_test/CesiumMan.glb';
+/// 角色 → manifest key 映射（详见 assets/remote_assets.json）。
+/// 注意：这些常量现在存的是** manifest key**（如 'zhuyu_avatar'），不再是 asset 路径；
+/// 运行时由 RemoteAssetManager 按 key 从 GitHub Release 下载 GLB 并转成本地 file:// 路径。
+/// GLB 已从 git 仓库移除（约 132MB），改为运行时按需下载，避免仓库膨胀。
+const String kUserAvatarAsset = 'zhuyu_avatar';
+const String kDogAvatarAsset = 'dog_avatar';
+const String kGirlAvatarAsset = 'char_girl';
+const String kBoyAvatarAsset = 'char_boy';
+const String kFallbackAvatarAsset = 'CesiumMan';
 
 /// 相机框景（按角色身高/站姿微调）。
 /// 竹笌少年身高约 1.6m，5m 距离 + 60° 俯角可保证全身在屏内。
@@ -135,7 +130,8 @@ class VrmAvatarView extends StatefulWidget {
 
 class _VrmAvatarViewState extends State<VrmAvatarView> {
   late VrmRole _currentRole;
-  String _src = kFallbackAvatarAsset;
+  // 解析完成前为空，build 时显示空白（加载中），避免用无效 src 渲染。
+  String _src = '';
 
   @override
   void initState() {
@@ -144,14 +140,24 @@ class _VrmAvatarViewState extends State<VrmAvatarView> {
     _resolveAsset();
   }
 
-  /// 优先用当前角色（或显式 asset）对应的资产，找不到就回退占位。
+  /// 优先用当前角色（或显式 asset = manifest key）对应的资产，按需从 release 下载，
+  /// 失败则回退占位 CesiumMan；都失败保持空白，不崩。
   Future<void> _resolveAsset() async {
-    final target = widget.asset ?? kVrmRoleAssets[_currentRole]!;
+    final key = widget.asset ?? kVrmRoleAssets[_currentRole]!;
     try {
-      await rootBundle.load(target);
-      if (mounted) setState(() => _src = target);
+      final localPath = await RemoteAssetManager.instance.resolveLocalPath(key);
+      if (mounted) setState(() => _src = localPath);
+      return;
     } catch (_) {
-      // 指定资产不存在 → 保持占位 CesiumMan（不崩）
+      // 目标角色下载/加载失败 → 回退占位 CesiumMan
+    }
+    try {
+      final fb = await RemoteAssetManager.instance
+          .resolveLocalPath(kFallbackAvatarAsset);
+      if (mounted) setState(() => _src = fb);
+    } catch (_) {
+      // 占位也失败（极端断网）→ 保持空白，不崩
+      if (mounted) setState(() => _src = '');
     }
   }
 
@@ -204,9 +210,10 @@ class _VrmAvatarViewState extends State<VrmAvatarView> {
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        Positioned.fill(
-          child: Transform.scale(
-            scale: widget.displayScale,
+        if (_src.isNotEmpty)
+          Positioned.fill(
+            child: Transform.scale(
+              scale: widget.displayScale,
             child: ModelViewer(
               src: _src,
               alt: '3D 角色',
