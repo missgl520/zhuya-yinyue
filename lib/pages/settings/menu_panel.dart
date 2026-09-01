@@ -39,6 +39,18 @@ class MenuPanel extends ConsumerStatefulWidget {
 }
 
 class _MenuPanelState extends ConsumerState<MenuPanel> {
+  // 两个编辑弹窗的输入框控制器：提升为字段，统一在 dispose 释放，
+  // 否则每次打开弹窗都会泄漏一个 TextEditingController。
+  final TextEditingController _wakeWordController = TextEditingController();
+  final TextEditingController _personaController = TextEditingController();
+
+  @override
+  void dispose() {
+    _wakeWordController.dispose();
+    _personaController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = ref.watch(themeProvider);
@@ -139,9 +151,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
   }
 
   void _showWakeWordEditor(BuildContext context) {
-    final controller = TextEditingController(
-      text: BackendConfig.instance.wakeWord,
-    );
+    _wakeWordController.text = BackendConfig.instance.wakeWord;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -162,7 +172,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: controller,
+              controller: _wakeWordController,
               decoration: const InputDecoration(
                 labelText: '唤醒词',
                 hintText: '例如：竹笌竹笌',
@@ -171,7 +181,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
               ),
               maxLength: 20,
               textInputAction: TextInputAction.done,
-              onSubmitted: (v) => _saveWakeWord(ctx, controller.text, ctx),
+              onSubmitted: (v) => _saveWakeWord(ctx, _wakeWordController.text, ctx),
             ),
             const SizedBox(height: 4),
             Text(
@@ -186,7 +196,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () => _saveWakeWord(ctx, controller.text, context),
+            onPressed: () => _saveWakeWord(ctx, _wakeWordController.text, context),
             child: const Text('保存'),
           ),
         ],
@@ -220,9 +230,8 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
 
   void _showPersonaEditor(BuildContext context) {
     final box = Hive.box('settings');
-    final controller = TextEditingController(
-      text: box.get('persona', defaultValue: '少年感 · 阳光 · 直接') as String,
-    );
+    _personaController.text =
+        box.get('persona', defaultValue: '少年感 · 阳光 · 直接') as String;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -243,7 +252,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: controller,
+              controller: _personaController,
               maxLines: 4,
               maxLength: 200,
               decoration: const InputDecoration(
@@ -261,7 +270,7 @@ class _MenuPanelState extends ConsumerState<MenuPanel> {
           ),
           FilledButton(
             onPressed: () {
-              box.put('persona', controller.text.trim());
+              box.put('persona', _personaController.text.trim());
               Navigator.pop(ctx);
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(

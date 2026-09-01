@@ -102,6 +102,8 @@ class _PetLibraryPageState extends State<PetLibraryPage> with SingleTickerProvid
         ],
       ),
     );
+    titleController.dispose();
+    contentController.dispose();
   }
 
   @override
