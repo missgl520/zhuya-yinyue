@@ -13,11 +13,9 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'dart:async';
-import 'dart:math';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_live2d/flutter_live2d.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../settings/settings_sheet.dart';
@@ -27,7 +25,7 @@ import '../../presentation/providers/chat_provider.dart';
 import '../../presentation/providers/settings_provider.dart';
 import '../../core/services/emotion_tts_service.dart';
 import '../../core/theme/app_theme.dart';
-import '../../widgets/vrm_avatar_view.dart';
+import '../../widgets/avatar_viewer.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/image_picker_button.dart';
 
@@ -886,9 +884,6 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
   Animation<Offset>? _anim;
   Animation<Offset>? _prevAnim;
 
-  Timer? _keepAliveT;
-  double _keepAlivePhase = 0.0;
-
   @override
   void initState() {
     super.initState();
@@ -896,10 +891,6 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
       if (!mounted) return;
       _screen = MediaQuery.of(context).size;
       _scheduleNextDrift();
-    });
-    _keepAliveT = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (!mounted) return;
-      setState(() => _keepAlivePhase += 0.1);
     });
   }
 
@@ -938,14 +929,16 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
     _drift.forward(from: 0).then((_) {
       if (!mounted) return;
       _offset = target;
+      avatarViewerController.stopWalk();
       _scheduleNextDrift();
     });
+    // 漂移开始 → 触发走路动画
+    avatarViewerController.playWalk();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
-    _keepAliveT?.cancel();
     _prevAnim?.removeListener(_onAnimTick);
     _drift.dispose();
     super.dispose();
@@ -955,11 +948,11 @@ class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
   Widget build(BuildContext context) {
     return Positioned(
       left: _offset.dx,
-      top: _offset.dy - (math.sin(_keepAlivePhase * 12.0) * 0.5),
+      top: _offset.dy,
       child: SizedBox(
         width: MediaQuery.of(context).size.width,
         height: MediaQuery.of(context).size.height * 0.78,
-        child: const VrmAvatarView(),
+        child: const AvatarViewer(),
       ),
     );
   }

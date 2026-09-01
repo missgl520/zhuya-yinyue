@@ -4,6 +4,22 @@ import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../presentation/providers/avatar_provider.dart';
 
+/// 静态控制器，供外部（如 chat_page 漂移）驱动 AvatarViewer
+class AvatarViewerController extends ChangeNotifier {
+  void playWalk()  => _post({'type': 'playWalk'});
+  void stopWalk()  => _post({'type': 'stopWalk'});
+  void _post(Map<String, dynamic> msg) {
+    _msg = msg;
+    notifyListeners();
+  }
+  Map<String, dynamic>? _msg;
+  Map<String, dynamic>? consume() {
+    final m = _msg; _msg = null;
+    return m;
+  }
+}
+final avatarViewerController = AvatarViewerController();
+
 /// 3D 换装视图（WebView + Three.js）
 class AvatarViewer extends ConsumerStatefulWidget {
   const AvatarViewer({super.key});
@@ -20,6 +36,12 @@ class _AvatarViewerState extends ConsumerState<AvatarViewer> {
   void initState() {
     super.initState();
     _initWebView();
+    avatarViewerController.addListener(_onControllerMsg);
+  }
+
+  void _onControllerMsg() {
+    final msg = avatarViewerController.consume();
+    if (msg != null) _post(msg);
   }
 
   void _initWebView() {
@@ -43,9 +65,6 @@ class _AvatarViewerState extends ConsumerState<AvatarViewer> {
     );
   }
 
-  // 公开方法，供外部调用
-  void postMessage(Map<String, dynamic> msg) => _post(msg);
-
   void _post(Map<String, dynamic> msg) {
     if (!_ready) return;
     final json = jsonEncode(msg).replaceAll("'", "\\'");
@@ -66,37 +85,34 @@ class _AvatarViewerState extends ConsumerState<AvatarViewer> {
   }
 
   @override
+  void dispose() {
+    avatarViewerController.removeListener(_onControllerMsg);
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     ref.listen<AvatarState>(avatarStateProvider, (prev, next) {
       if (!_ready) return;
-
-      // 性别/基础模型变化 → 全量重载
       if (prev?.gender != next.gender) {
         _sendFullState();
         return;
       }
-
-      if (prev?.hairId != next.hairId) {
+      if (prev?.hairId != next.hairId)
         _post({'type': 'hair', 'url': next.hairPath});
-      }
-      if (prev?.topId != next.topId) {
+      if (prev?.topId != next.topId)
         _post({'type': 'top', 'url': next.topPath});
-      }
-      if (prev?.bottomId != next.bottomId) {
+      if (prev?.bottomId != next.bottomId)
         _post({'type': 'bottom', 'url': next.bottomPath});
-      }
-      if (prev?.shoesId != next.shoesId) {
+      if (prev?.shoesId != next.shoesId)
         _post({'type': 'shoes', 'url': next.shoesPath});
-      }
-      if (prev?.eyeColor != next.eyeColor) {
+      if (prev?.eyeColor != next.eyeColor)
         _post({'type': 'eye', 'url': next.eyePath});
-      }
     });
 
     return Stack(
       children: [
         WebViewWidget(controller: _controller),
-        // 走路/停止 按钮
         Positioned(
           bottom: 12, right: 12,
           child: _WalkButton(
