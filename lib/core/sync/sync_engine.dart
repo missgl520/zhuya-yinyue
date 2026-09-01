@@ -67,10 +67,25 @@ class SyncEngine {
     }
   }
 
+  /// 指数退避毫秒数：第 attempts 次重试后等待 1000·2^(attempts-1)，封顶 30s。
+  /// 抽成纯函数以便单测（test/sync_engine_test.dart）。
+  ///
+  /// 注意：Dart 原生 int 为 64 位有符号整数，`1 << (attempts-1)` 在
+  /// attempts-1 >= 64（即 attempts >= 65）时会移位溢出归零，导致 clamp 退回到
+  /// 下限 1000ms 而非封顶 30000ms。故在 2^(attempts-1) 已超过上限时直接返回上限，
+  /// 彻底规避溢出（1000·2^5 = 32000 已 > 30000，故 attempts >= 6 一律封顶）。
+  static const int _maxBackoffMs = 30000;
+  static int backoffMillis(int attempts) {
+    if (attempts <= 0) return 0;
+    if (attempts >= 6) return _maxBackoffMs; // 1000·2^5 = 32000 > 30000，已达上限
+    // attempts ∈ [1,5] 时 1 << (attempts-1) ∈ [1,16]，无溢出风险
+    return (1000 * (1 << (attempts - 1))).clamp(1000, _maxBackoffMs);
+  }
+
   Future<void> _resend(OutboxItem item) async {
     // 指数退避：已尝试次数越多，等待越久（上限 30s）
     if (item.attempts > 0) {
-      final delayMs = (1000 * (1 << (item.attempts - 1))).clamp(1000, 30000);
+      final delayMs = backoffMillis(item.attempts);
       await Future.delayed(Duration(milliseconds: delayMs));
     }
 
