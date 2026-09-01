@@ -28,6 +28,10 @@ import '../../core/theme/app_theme.dart';
 import '../../widgets/avatar_viewer.dart';
 import '../../widgets/voice_button.dart';
 import '../../widgets/image_picker_button.dart';
+import 'widgets/chat_top_icon.dart';
+import 'widgets/chat_letter_entry.dart';
+import 'widgets/chat_avatar_panel.dart';
+import 'widgets/chat_typing_cursor.dart';
 
 // ════════════════════════════════════════════════════════════
 // 情绪工具（保留自原文件）
@@ -207,7 +211,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
           const Positioned.fill(
             child: ColoredBox(color: Color(0xFFEDF7F0)),
           ),
-          _WanderingLive2D(),
+          const ChatAvatarPanel(),
           Positioned(
             bottom: 140,
             left: 0,
@@ -265,17 +269,17 @@ class _ChatPageState extends ConsumerState<ChatPage>
           const SizedBox(width: 12),
           GestureDetector(
             onTap: () => context.push('/avatar/customize'),
-            child: const _TopIcon(icon: Icons.style_outlined),
+            child: const ChatTopIcon(icon: Icons.style_outlined),
           ),
           const SizedBox(width: 12),
           GestureDetector(
             onTap: () => context.push('/pet'),
-            child: const _TopIcon(icon: Icons.pets),
+            child: const ChatTopIcon(icon: Icons.pets),
           ),
           const SizedBox(width: 12),
           GestureDetector(
             onTap: () => SettingsSheet.show(context),
-            child: const _TopIcon(icon: Icons.settings_outlined),
+            child: const ChatTopIcon(icon: Icons.settings_outlined),
           ),
         ],
       ),
@@ -487,9 +491,9 @@ class _ChatPageState extends ConsumerState<ChatPage>
         if (index == 0) return const SizedBox(height: 8);
         final msgIndex = index - 1;
         if (typing && msgIndex == messages.length) {
-          return _LetterEntry.typing(chatState.currentText!);
+          return ChatLetterEntry.typing(chatState.currentText!);
         }
-        return _LetterEntry(
+        return ChatLetterEntry(
           message: messages[msgIndex],
           distanceFromBottom: messages.length - msgIndex,
         );
@@ -611,7 +615,8 @@ class _ChatPageState extends ConsumerState<ChatPage>
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (int i = 0; i < 3; i++) _Dot(delay: i, anim: _thinkingController.value),
+              for (int i = 0; i < 3; i++)
+                ChatThinkingDot(delay: i, anim: _thinkingController.value),
               const SizedBox(width: 8),
               Text(
                 '竹笌在想',
@@ -629,331 +634,4 @@ class _ChatPageState extends ConsumerState<ChatPage>
   }
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 顶栏图标
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-class _TopIcon extends StatelessWidget {
-  final IconData icon;
-  const _TopIcon({required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Icon(
-      icon,
-      size: 24,
-      color: Colors.white,
-      shadows: [
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.45),
-          blurRadius: 6,
-          offset: const Offset(0, 1),
-        ),
-        Shadow(
-          color: Colors.black.withValues(alpha: 0.2),
-          blurRadius: 14,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    );
-  }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 消息条目
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class _LetterEntry extends StatelessWidget {
-  final entities.Message message;
-  final int distanceFromBottom;
-
-  const _LetterEntry({required this.message, required this.distanceFromBottom});
-
-  _LetterEntry.typing(String text)
-      : message = entities.Message(
-          id: '__typing__',
-          role: 'assistant',
-          content: text,
-          timestamp: DateTime.now(),
-          isStreaming: true,
-        ),
-        distanceFromBottom = 1;
-
-  bool get isUser => message.role == 'user';
-
-  Widget _buildEntry(Widget realContent) {
-    if (distanceFromBottom <= 3) {
-      return AnimatedOpacity(
-        opacity: 1.0,
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOut,
-        child: realContent,
-      );
-    }
-    const double step = 0.25;
-    final double alpha =
-        (1.0 - step * (distanceFromBottom - 3)).clamp(0.18, 1.0);
-    return AnimatedOpacity(
-      opacity: alpha,
-      duration: const Duration(milliseconds: 220),
-      curve: Curves.easeOut,
-      child: realContent,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget realContent = Padding(
-      padding: const EdgeInsets.only(bottom: 28),
-      child: Column(
-        crossAxisAlignment:
-            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!isUser) ...[
-                Image.asset(
-                  'assets/logo_mascot.png',
-                  width: 18,
-                  height: 18,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(width: 6),
-              ],
-              Text(
-                isUser ? '我' : '竹笌',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: isUser
-                      ? Theme.of(context).textTheme.bodySmall?.color
-                      : AppTheme.bambooDeep.withValues(alpha: 0.7),
-                  letterSpacing: 3,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (!isUser) ...[
-                const SizedBox(width: 6),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: AppTheme.bambooDeep.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    'AI 生成',
-                    style: TextStyle(
-                      fontSize: 9,
-                      color: AppTheme.bambooDeep,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ],
-          ),
-          const SizedBox(height: 6),
-          Container(
-            constraints: BoxConstraints(
-              maxWidth: MediaQuery.of(context).size.width * 0.62,
-            ),
-            decoration: BoxDecoration(
-              color: isUser
-                  ? AppTheme.bambooDeep
-                  : Colors.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(16),
-              border: isUser
-                  ? null
-                  : Border.all(
-                      color: AppTheme.bamboo.withValues(alpha: 0.3),
-                      width: 0.5,
-                    ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.06),
-                  blurRadius: 8,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message.content,
-                  style: TextStyle(
-                    fontSize: 15,
-                    height: 1.6,
-                    color: isUser ? Colors.white : AppTheme.bambooDeep,
-                  ),
-                ),
-                if (message.isStreaming) ...[
-                  const SizedBox(height: 2),
-                  const _TypingCursor(),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    return _buildEntry(realContent);
-  }
-}
-
-// 打字光标
-class _TypingCursor extends StatefulWidget {
-  const _TypingCursor();
-
-  @override
-  State<_TypingCursor> createState() => _TypingCursorState();
-}
-
-class _TypingCursorState extends State<_TypingCursor>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    duration: const Duration(milliseconds: 600),
-    vsync: this,
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, __) => Container(
-        width: 2,
-        height: 14,
-        margin: const EdgeInsets.only(left: 4),
-        color: AppTheme.bambooDeep.withValues(alpha: _c.value),
-      ),
-    );
-  }
-}
-
-// 思考动画圆点
-class _Dot extends StatelessWidget {
-  final int delay;
-  final double anim;
-
-  const _Dot({required this.delay, required this.anim});
-
-  @override
-  Widget build(BuildContext context) {
-    final t = ((anim + delay * 0.33) % 1.0);
-    final scale = math.sin(t * math.pi);
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 2),
-      width: 6,
-      height: 6,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppTheme.bambooDeep.withValues(alpha: 0.3 + 0.7 * scale),
-      ),
-    );
-  }
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Live2D 漂移 + 3D 模型（保留自原文件）
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-class _WanderingLive2D extends ConsumerStatefulWidget {
-  const _WanderingLive2D();
-
-  @override
-  ConsumerState<_WanderingLive2D> createState() => _WanderingLive2DState();
-}
-
-class _WanderingLive2DState extends ConsumerState<_WanderingLive2D>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _drift = AnimationController(vsync: this);
-  final math.Random _rnd = math.Random();
-
-  Size? _screen;
-  Offset _offset = Offset.zero;
-  Timer? _timer;
-  Animation<Offset>? _anim;
-  Animation<Offset>? _prevAnim;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _screen = MediaQuery.of(context).size;
-      _scheduleNextDrift();
-    });
-  }
-
-  void _scheduleNextDrift() {
-    if (!mounted) return;
-    _timer = Timer(
-      Duration(milliseconds: 3500 + _rnd.nextInt(5000)),
-      _driftToRandom,
-    );
-  }
-
-  void _onAnimTick() {
-    if (mounted) setState(() => _offset = _anim!.value);
-  }
-
-  void _driftToRandom() {
-    if (!mounted || _screen == null) {
-      _scheduleNextDrift();
-      return;
-    }
-    final sw = _screen!.width;
-    final sh = _screen!.height;
-    final target = Offset(
-      (_rnd.nextDouble() * 2 - 1) * sw * 0.28,
-      (_rnd.nextDouble() * 2 - 1) * sh * 0.22,
-    );
-
-    _prevAnim?.removeListener(_onAnimTick);
-    _anim = Tween<Offset>(begin: _offset, end: target).animate(
-      CurvedAnimation(parent: _drift, curve: Curves.easeInOutSine),
-    );
-    _anim!.addListener(_onAnimTick);
-    _prevAnim = _anim;
-
-    _drift.duration = Duration(milliseconds: 4000 + _rnd.nextInt(4000));
-    _drift.forward(from: 0).then((_) {
-      if (!mounted) return;
-      _offset = target;
-      avatarViewerController.stopWalk();
-      _scheduleNextDrift();
-    });
-    // 漂移开始 → 触发走路动画
-    avatarViewerController.playWalk();
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _prevAnim?.removeListener(_onAnimTick);
-    _drift.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Positioned(
-      left: _offset.dx,
-      top: _offset.dy,
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width,
-        height: MediaQuery.of(context).size.height * 0.78,
-        child: const AvatarViewer(),
-      ),
-    );
-  }
-}
