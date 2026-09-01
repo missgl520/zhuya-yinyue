@@ -19,7 +19,7 @@ import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/avatar/avatar_customize_page.dart';
-import '../../pages/discover/discover_page.dart';
+
 import '../../pages/profile/profile_page.dart';
 // Phase 1 新增页面
 import '../../pages/pet/pet_page.dart';
@@ -111,13 +111,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/home',
         name: 'home',
         builder: (context, state) => const ChatPage(),
-      ),
-
-      // 发现页 · 竹林一角（图 2 场景：浅绿背景 + 装饰竹柱 + 左下角小竹笌吉祥物）
-      GoRoute(
-        path: '/discover',
-        name: 'discover',
-        builder: (context, state) => const DiscoverPage(),
       ),
 
       // 我的页（通用：设置 / 记忆 / 隐私等）
