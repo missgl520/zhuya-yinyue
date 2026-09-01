@@ -37,9 +37,9 @@ final backendServiceProvider = Provider<BackendService>((ref) {
   return BackendService.instance;
 });
 
-/// Agnes 服务（单例）
+/// Agnes 服务（单例，统一对话后端）
 final agnesServiceProvider = Provider<AgnesService>((ref) {
-  return AgnesService();
+  return AgnesService.instance;
 });
 
 /// ASR 服务（单例）

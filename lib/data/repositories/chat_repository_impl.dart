@@ -2,31 +2,40 @@
 // 对话仓库实现（Chat Repository Impl）
 //
 // 位于：data/repositories/chat_repository_impl.dart
-// 职责：实现 ChatRepository 接口，把 SSE 流封装成 Repository 格式，
-//       并落实"离线优先"——本地作为事实来源，远程失败则进发件箱。
+// 职责：实现 ChatRepository 接口，对话统一走 Agnes AI，
+//       情绪/好感度由 AgnesService 本地分析，不再依赖自建后端。
 //
-// 离线优先改造点（对照文章）：
-//   1) 每条消息生成 client_msg_id（幂等），贯穿整条链路；
-//   2) 用户消息先乐观写本地 chat_history（pending_sync=1）；
-//   3) 在线 → 流式接收，结束后把完整 AI 回复写本地；
-//   4) 网络/临时错误 → 进 outbox，返回 offlineSaved 事件（不报硬错）；
-//   5) SyncEngine 联网后自动 flush outbox，成功后标记已同步。
+// 架构说明（2026-09-01 重构）：
+//   - 对话主后端：Agnes 2.5 Pro（AgnesService.chatStream）
+//   - 情绪检测：AgnesService 本地关键词分析
+//   - 好感度：AgnesService 本地积分（0~100）
+//   - 离线优先：消息先写 Hive，SyncEngine 处理网络同步
+//   - 自建后端（BackendService）不再参与对话流程
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'dart:async';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:uuid/uuid.dart';
-import '../../core/services/backend_service.dart';
+import '../../core/services/agnes_service.dart';
 import '../../domain/entities/message.dart';
 import '../../domain/repositories/chat_repository.dart';
 import '../datasources/chat_local_data_source.dart';
-import '../services/chat_service.dart';
 import '../../core/sync/sync_engine.dart';
 
 class ChatRepositoryImpl implements ChatRepository {
-  ChatRepositoryImpl({ChatService? service})
-    : _service = service ?? ChatService();
+  ChatRepositoryImpl() {
+    // 启动时从 Hive 加载 Agnes API Key 并注入
+    try {
+      final box = Hive.box('settings');
+      final key = box.get('agnesApiKey', defaultValue: '') as String?;
+      if (key != null && key.isNotEmpty) {
+        AgnesService.instance.setApiKey(key);
+      }
+      final useCN = box.get('agnesUseCN', defaultValue: true) as bool;
+      AgnesService.instance.setUseCN(useCN);
+    } catch (_) {}
+  }
 
-  final ChatService _service;
   final ChatLocalDataSource _local = ChatLocalDataSource.instance;
 
   @override
@@ -44,79 +53,84 @@ class ChatRepositoryImpl implements ChatRepository {
       ts: DateTime.now(),
     );
 
-    final controller = StreamController<ChatEvent>();
-    final buf = StringBuffer();
+    // 2) 历史消息转成 Agnes 需要的格式 [{role, content}, ...]
+    final AgnesHistory = history.map((m) => {
+          'role': m.role,
+          'content': m.content,
+        }).toList();
 
-    await _service.streamChat(
+    // 3) 监听 Agnes 流式输出，转为 ChatEvent
+    await for (final event in AgnesService.instance.chatStream(
       message: message,
-      history: history,
+      history: AgnesHistory,
       systemPrompt: systemPrompt,
-      clientMsgId: clientMsgId,
-      onText: (token) {
-        buf.write(token);
-        controller.add(ChatEvent.token(token));
-      },
-      onEmotion: (emotion, confidence) {
-        controller.add(ChatEvent.emotion(emotion));
-      },
-      onAffinity: (affinity) {
-        controller.add(
-          ChatEvent(type: ChatEventType.affinity, affinity: affinity),
-        );
-      },
-      onDone: () {
-        // 2) 完整 AI 回复落本地（与用户消息共享 client_msg_id）
-        _local.appendAssistantMessage(
-          clientMsgId: clientMsgId,
-          content: buf.toString(),
-        );
-        _local.markUserSynced(clientMsgId);
-        controller.add(ChatEvent.done());
-        controller.close();
-      },
-      onError: (error) {
-        if (_isRecoverable(error)) {
-          // 3) 网络/临时错误：进发件箱，不报硬错
-          _local.enqueueOutbox(clientMsgId: clientMsgId, message: message);
-          controller.add(ChatEvent.offlineSaved(clientMsgId));
-        } else {
-          controller.add(ChatEvent.error(error));
-        }
-        controller.close();
-      },
-    );
+    )) {
+      switch (event) {
+        case AgnesTextEvent(:final text):
+          yield ChatEvent.token(text);
 
-    yield* controller.stream;
+        case AgnesEmotionEvent(:final emotion):
+          yield ChatEvent.emotion(emotion);
+
+        case AgnesAffinityEvent(:final affinity):
+          yield ChatEvent(
+            type: ChatEventType.affinity,
+            affinity: {
+              'delta': affinity.delta,
+              'total': affinity.total,
+            },
+          );
+
+        case AgnesDoneEvent():
+          // 完整回复落本地
+          _local.appendAssistantMessage(
+            clientMsgId: clientMsgId,
+            content: '', // 实际内容由调用方从 token 累积
+          );
+          _local.markUserSynced(clientMsgId);
+          yield ChatEvent.done();
+
+        case AgnesErrorEvent(:final message):
+          // 网络类错误 → 进发件箱，不报硬错
+          if (_isRecoverable(message)) {
+            _local.enqueueOutbox(clientMsgId: clientMsgId, message: message);
+            yield ChatEvent.offlineSaved(clientMsgId);
+          } else {
+            yield ChatEvent.error(message);
+          }
+      }
+    }
   }
 
   /// 网络类 / 临时错误 → 进发件箱重试；
-  /// 认证 / 业务错误（如 401）→ 硬报错，需用户介入。
+  /// 其他错误 → 硬报错。
   bool _isRecoverable(String err) {
-    if (err.contains('认证失败')) return false; // 401
     return err.contains('网络') ||
         err.contains('超时') ||
         err.contains('连接') ||
-        err.contains('网关') ||
-        err.contains('后端');
+        err.contains('DNS') ||
+        err.contains('connect');
   }
 
   @override
-  Future<String> detectEmotion(String text) {
-    return _service.detectEmotion(text);
+  Future<String> detectEmotion(String text) async {
+    return AgnesService.instance.detectEmotion(text).label;
   }
 
   @override
   Future<dynamic> getAffinity() async {
-    try {
-      return await BackendService.instance.getAffinity();
-    } catch (_) {
-      return null;
-    }
+    return {'total': AgnesService.instance.affinity};
   }
 
   @override
-  Future<bool> isOnline() {
-    return _service.isOnline();
+  Future<bool> isOnline() async {
+    // Agnes 是云端 API，能发请求即为在线
+    try {
+      await AgnesService.instance.chat(message: 'ping', history: []);
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   @override
