@@ -7,6 +7,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/services/audio_process_service.dart' show ProcessState;
 import '../providers/music_player_provider.dart';
 
 class MusicPlayerSheet extends ConsumerWidget {
@@ -166,15 +167,63 @@ class MusicPlayerSheet extends ConsumerWidget {
               ),
             ]),
 
-            if (state.error != null) ...[
-              const SizedBox(height: 12),
-              Text(state.error!, style: const TextStyle(fontSize: 12, color: AppTheme.danger)),
+            const SizedBox(height: 8),
+
+            // 处理进度（下载 → FFmpeg处理）
+            if (state.isProcessing) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(children: [
+                  Row(children: [
+                    if (state.processState == ProcessState.downloading)
+                      const Icon(Icons.downloading_rounded, size: 16, color: AppTheme.accent)
+                    else
+                      const Icon(Icons.tune_rounded, size: 16, color: AppTheme.accent),
+                    const SizedBox(width: 8),
+                    Text(
+                      state.processMessage ?? '处理中…',
+                      style: const TextStyle(fontSize: 12, color: AppTheme.accent),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${(state.processProgress * 100).toInt()}%',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                    ),
+                  ]),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: state.processProgress,
+                      backgroundColor: AppTheme.border,
+                      color: AppTheme.accent,
+                      minHeight: 3,
+                    ),
+                  ),
+                ]),
+              ),
+            ] else if (state.processState == ProcessState.done && state.processMessage == '播放中') ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppTheme.success.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.auto_awesome, size: 13, color: AppTheme.success),
+                  SizedBox(width: 4),
+                  Text('响度增强 · 动态优化', style: TextStyle(fontSize: 11, color: AppTheme.success)),
+                ]),
+              ),
             ],
 
-            // 下载进度
-            if (state.isDownloading) ...[
+            if (state.error != null) ...[
               const SizedBox(height: 8),
-              LinearProgressIndicator(value: state.downloadProgress, backgroundColor: AppTheme.border, color: AppTheme.accent),
+              Text(state.error!, style: const TextStyle(fontSize: 12, color: AppTheme.danger)),
             ],
           ]),
         ),

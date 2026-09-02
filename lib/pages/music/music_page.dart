@@ -552,30 +552,6 @@ class _TrackTile extends ConsumerWidget {
                 }
               },
             ),
-            // 下载按钮
-            IconButton(
-              icon: Icon(
-                playerState.isDownloading ? Icons.downloading : Icons.download_outlined,
-                size: 20,
-              ),
-              color: AppTheme.muted,
-              onPressed: playerState.isDownloading
-                  ? null
-                  : () async {
-                      final path = await notifier.download(track);
-                      if (context.mounted && path != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('已保存: ${track.title}'),
-                            backgroundColor: AppTheme.success,
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                        // 刷新本地音乐列表
-                        ref.invalidate(localTracksProvider);
-                      }
-                    },
-            ),
           ]),
         ),
       ),
