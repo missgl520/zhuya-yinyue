@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
-import '../../core/services/music_search_service.dart';
+import '../../core/services/music_search_service.dart' show MusicTrack, MusicSearchResult, AudioQuality;
 import '../providers/music_player_provider.dart';
 import 'music_player_sheet.dart';
 
@@ -42,6 +42,24 @@ final musicSearchResultProvider = FutureProvider.family<MusicSearchResult, Strin
   if (query.trim().isEmpty) return const MusicSearchResult(tracks: [], query: '', total: 0);
   return MusicSearchService().search(query, limit: 30);
 });
+
+/// 搜索结果音质分布统计
+String _qualitySummary(List<MusicTrack> tracks) {
+  int sq = 0, hq = 0, lossless = 0;
+  for (final t in tracks) {
+    switch (t.estimatedQuality) {
+      case AudioQuality.sq: sq++; break;
+      case AudioQuality.hq: hq++; break;
+      case AudioQuality.lossless: lossless++; break;
+      default: break;
+    }
+  }
+  final parts = <String>[];
+  if (lossless > 0) parts.add('🎵无损$lossless');
+  if (sq > 0) parts.add('SQ$sq');
+  if (hq > 0) parts.add('HQ$hq');
+  return parts.isEmpty ? '' : parts.join(' · ');
+}
 
 class MusicPage extends ConsumerStatefulWidget {
   const MusicPage({super.key});
@@ -392,10 +410,17 @@ class _SearchContent extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                '找到 ${result.total} 首 "${result.query}"',
-                style: const TextStyle(fontSize: 12, color: AppTheme.muted),
-              ),
+              child: Row(children: [
+                Text(
+                  '找到 ${result.total} 首',
+                  style: const TextStyle(fontSize: 12, color: AppTheme.muted),
+                ),
+                const Spacer(),
+                Text(
+                  _qualitySummary(result.tracks),
+                  style: const TextStyle(fontSize: 11, color: AppTheme.muted),
+                ),
+              ]),
             ),
             Expanded(
               child: ListView.builder(
@@ -502,6 +527,8 @@ class _TrackTile extends ConsumerWidget {
                 ),
                 const SizedBox(height: 2),
                 Row(children: [
+                  _QualityBadge(track: track),
+                  const SizedBox(width: 6),
                   _PlatformChip(track: track),
                   if (track.durationMs != null) ...[
                     const SizedBox(width: 8),
@@ -556,17 +583,59 @@ class _TrackTile extends ConsumerWidget {
   }
 }
 
+class _QualityBadge extends StatelessWidget {
+  final MusicTrack track;
+  const _QualityBadge(this.track);
+
+  @override
+  Widget build(BuildContext context) {
+    final q = track.estimatedQuality;
+    if (q == AudioQuality.unknown) return const SizedBox.shrink();
+
+    Color bgColor;
+    String label;
+    if (q == AudioQuality.lossless) {
+      bgColor = const Color(0xFF6C63FF);
+      label = '🎵 无损';
+    } else if (q == AudioQuality.sq) {
+      bgColor = const Color(0xFFE67E22);
+      label = 'SQ';
+    } else if (q == AudioQuality.hq) {
+      bgColor = AppTheme.accent;
+      label = 'HQ';
+    } else {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+}
+
 class _PlatformChip extends StatelessWidget {
   final MusicTrack track;
   const _PlatformChip(this.track);
 
   @override
   Widget build(BuildContext context) {
-    final color = track.platform == '163' ? AppTheme.ember : AppTheme.accent;
+    final color = track.platform == '163'
+        ? AppTheme.ember
+        : track.platform == 'kugou'
+            ? const Color(0xFF2196F3)
+            : AppTheme.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(
