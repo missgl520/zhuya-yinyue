@@ -25,6 +25,7 @@ import '../../pages/profile/profile_page.dart';
 import '../../pages/pet/pet_page.dart';
 import '../../pages/pet/pet_fullscreen_page.dart';
 import '../../pages/pet/pet_library_page.dart';
+import '../../pages/music/music_page.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -143,6 +144,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/pet/library',
         name: 'pet-library',
         builder: (context, state) => const PetLibraryPage(),
+      ),
+
+      // 音乐页（本地音乐 + 搜索播放）
+      GoRoute(
+        path: '/music',
+        name: 'music',
+        builder: (context, state) => const MusicPage(),
       ),
     ],
   );

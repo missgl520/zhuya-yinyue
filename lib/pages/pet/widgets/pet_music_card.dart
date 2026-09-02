@@ -24,7 +24,7 @@ class PetMusicEntry extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: AppTheme.space3, vertical: AppTheme.space2),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderRadius: BorderRadius.circular(AppTheme.radius),
           border: Border.all(color: color.withValues(alpha: 0.2)),
         ),
         child: Row(children: [
@@ -59,7 +59,9 @@ class PetMusicCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('音乐创作', style: TextStyle(fontSize: AppTheme.textMd, fontWeight: FontWeight.w600, color: AppTheme.fg)),
         const SizedBox(height: AppTheme.space3),
-        PetMusicEntry(title: '生成音乐', subtitle: 'AI 创作专属音乐', icon: AppIconName.music, color: AppTheme.accent, onTap: () => onTap('/pet/music')),
+        PetMusicEntry(title: '音乐搜索', subtitle: '全网音乐搜索播放', icon: AppIconName.search, color: AppTheme.accent, onTap: () => onTap('/music')),
+        const SizedBox(height: AppTheme.space2),
+        PetMusicEntry(title: '生成音乐', subtitle: 'AI 创作专属音乐', icon: AppIconName.music, color: AppTheme.ember, onTap: () => onTap('/pet/music')),
         const SizedBox(height: AppTheme.space2),
         PetMusicEntry(title: '歌词库', subtitle: '查看已保存歌词', icon: AppIconName.fileText, color: AppTheme.sun, onTap: () => onTap('/pet/library?tab=lyrics')),
         const SizedBox(height: AppTheme.space2),
