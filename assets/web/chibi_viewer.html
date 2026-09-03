@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>竹笌 · Chibi 模型展示</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+    /* 顶部栏 */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px;
+      background: rgba(26,26,46,0.85); backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    #header h1 { color: #e8d5f0; font-size: 18px; font-weight: 600; font-family: system-ui; }
+    #header .tag { color: #a78bfa; font-size: 12px; font-family: monospace; margin-left: 12px; }
+
+    /* Three.js 画布 */
+    #viewer { flex: 1; display: block; }
+
+    /* 角色切换按钮 */
+    #char-bar {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 10;
+      display: flex; gap: 10px; padding: 16px 20px;
+      background: rgba(26,26,46,0.9); backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      overflow-x: auto; justify-content: center;
+    }
+    .char-btn {
+      padding: 8px 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.06); color: #ccc; font-size: 14px;
+      cursor: pointer; white-space: nowrap; transition: all 0.2s;
+      font-family: system-ui;
+    }
+    .char-btn:hover { background: rgba(167,139,250,0.2); border-color: #a78bfa; color: #e; }
+    .char-btn.active { background: rgba(167,139,250,0.3); border-color: #a78bfa; color: #e8d5f0; }
+
+    /* 动作按钮 */
+    #anim-bar {
+      position: fixed; right: 20px; top: 50%; transform: translateY(-50%);
+      z-index: 10; display: flex; flex-direction: column; gap: 8px;
+    }
+    .anim-btn {
+      padding: 10px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(26,26,46,0.85); color: #ccc; font-size: 13px;
+      cursor: pointer; writing-mode: vertical-rl; transition: all 0.2s;
+      font-family: system-ui;
+    }
+    .anim-btn:hover { background: rgba(100,200,150,0.2); border-color: #6ee7b7; color: #6ee7b7; }
+    .anim-btn.active { background: rgba(100,200,150,0.3); border-color: #6ee7b7; color: #6ee7b7; }
+
+    /* 提示 */
+    #tip {
+      position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+      color: rgba(255,255,255,0.3); font-size: 12px; font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div>
+      <h1>竹笌 · Chibi 模型 <span class="tag">Python+trimesh 生成</span></h1>
+    </div>
+  </div>
+
+  <div id="anim-bar">
+    <button class="anim-btn" id="btn-idle">待机</button>
+    <button class="anim-btn" id="btn-walk">走路</button>
+    <button class="anim-btn" id="btn-wave">挥手</button>
+    <button class="anim-btn" id="btn-jump">跳跃</button>
+  </div>
+
+  <canvas id="viewer"></canvas>
+
+  <div id="char-bar">
+    <button class="char-btn active" data-char="default">默认</button>
+    <button class="char-btn" data-char="cat_girl">猫娘</button>
+    <button class="char-btn" data-char="dark">暗黑</button>
+    <button class="char-btn" data-char="fairy">精灵</button>
+  </div>
+
+  <div id="tip">鼠标拖拽旋转 · 滚轮缩放</div>
+</div>
+
+<script type="importmap">{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+// ── 场景 ──
+const canvas = document.getElementById('viewer');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+// 渐变背景
+const canvas2d = document.createElement('canvas');
+canvas2d.width = 2; canvas2d.height = 512;
+const ctx = canvas2d.getContext('2d');
+const grad = ctx.createLinearGradient(0, 0, 0, 512);
+grad.addColorStop(0, '#1a1a2e');
+grad.addColorStop(1, '#16213e');
+ctx.fillStyle = grad;
+ctx.fillRect(0, 0, 2, 512);
+const bgTex = new THREE.CanvasTexture(canvas2d);
+scene.background = bgTex;
+
+// ── 相机 ──
+const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 100);
+camera.position.set(0, 1.2, 4.0);
+camera.lookAt(0, 0.8, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.minDistance = 1.5;
+controls.maxDistance = 8;
+controls.maxPolarAngle = Math.PI * 0.85;
+controls.update();
+
+// ── 灯光 ──
+scene.add(new THREE.AmbientLight(0xfff8f0, 0.5));
+const keyLight = new THREE.DirectionalLight(0xfff5e0, 2.5);
+keyLight.position.set(3, 7, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera = { near: 0.5, far: 25, left: -3, right: 3, top: 4, bottom: -2 };
+keyLight.shadow.bias = -0.0003;
+scene.add(keyLight);
+scene.add(new THREE.DirectionalLight(0xc8e4ff, 0.9));
+scene.add(new THREE.DirectionalLight(0xffeedd, 0.5));
+scene.add(new THREE.HemisphereLight(0xd8ecff, 0xb8d0a0, 0.6));
+
+// ── 地面 ──
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(3, 64),
+  new THREE.MeshStandardMaterial({ color: 0x1e1e3f, roughness: 0.9 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// 光环
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.6, 0.7, 64),
+  new THREE.MeshBasicMaterial({ color: 0x6c63ff, side: THREE.DoubleSide, transparent: true, opacity: 0.3 })
+);
+ring.rotation.x = -Math.PI / 2; ring.position.y = 0.01;
+scene.add(ring);
+
+// ── 角色 ──
+const CHAR_DIR = './assets/3d/models/';
+const MODELS = {
+  default:  CHAR_DIR + 'chibi_default.glb',
+  cat_girl: CHAR_DIR + 'chibi_cat_girl.glb',
+  dark:     CHAR_DIR + 'chibi_dark.glb',
+  fairy:    CHAR_DIR + 'chibi_fairy.glb',
+};
+
+const loader = new GLTFLoader();
+let currentChar = null;
+let charGroup = null;
+let mixer = null;
+let currentAction = null;
+let animTime = 0;
+let currentAnim = 'idle';
+
+async function loadChar(name) {
+  if (charGroup) { scene.remove(charGroup); charGroup = null; }
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+
+  setCharBtn(name);
+  try {
+    const gltf = await new Promise((res, rej) => loader.load(MODELS[name], res, null, rej));
+    charGroup = gltf.scene.clone(true);
+
+    // 应用材质和阴影
+    charGroup.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true; c.receiveShadow = true;
+        if (c.material) {
+          c.material.side = THREE.DoubleSide;
+          // 轻微发光
+          if (Array.isArray(c.material)) c.material.forEach(m => { m.emissive = new THREE.Color(0.05, 0.03, 0.08); });
+          else c.material.emissive = new THREE.Color(0.05, 0.03, 0.08);
+        }
+      }
+    });
+
+    charGroup.scale.set(0.35, 0.35, 0.35);
+    charGroup.position.y = -0.7; // 脚接地
+    scene.add(charGroup);
+
+    // 尝试使用 GLB 内嵌动画
+    if (gltf.animations?.length) {
+      mixer = new THREE.AnimationMixer(charGroup);
+      const clip = gltf.animations[0];
+      currentAction = mixer.clipAction(clip);
+      currentAction.setLoop(THREE.LoopRepeat, Infinity);
+      currentAction.play();
+    }
+
+    currentChar = name;
+    currentAnim = 'idle';
+  } catch(e) { console.error('加载失败:', name, e); }
+}
+
+// ── 动画系统 ──
+function playAnim(name) {
+  if (!charGroup) return;
+  currentAnim = name;
+
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+  if (currentAction) currentAction = null;
+
+  if (name === 'idle') {
+    // 待机呼吸
+  } else if (name === 'walk') {
+    // 走路上下起伏
+  } else if (name === 'wave') {
+    // 挥手 — 临时动画
+    // TODO: Mixamo 骨骼动画
+  } else if (name === 'jump') {
+    // 跳跃
+  }
+}
+
+// ── 渲染循环 ──
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  animTime += dt;
+
+  if (mixer) mixer.update(dt);
+
+  // 待机动画
+  if (charGroup && currentAnim === 'idle') {
+    charGroup.position.y = -0.7 + Math.sin(animTime * 1.3) * 0.012;
+    charGroup.rotation.y = Math.sin(animTime * 0.6) * 0.06;
+  }
+
+  // 走路动画
+  if (charGroup && currentAnim === 'walk') {
+    charGroup.position.y = -0.7 + Math.abs(Math.sin(animTime * 4)) * 0.05;
+    charGroup.rotation.y = Math.sin(animTime * 2) * 0.15;
+    charGroup.rotation.z = Math.sin(animTime * 4) * 0.04;
+  }
+
+  // 跳跃动画
+  if (charGroup && currentAnim === 'jump') {
+    const t = (animTime % 1.5) / 1.5;
+    charGroup.position.y = -0.7 + Math.sin(t * Math.PI) * 0.4;
+    charGroup.scale.y = 0.35 + Math.sin(t * Math.PI) * 0.02;
+    charGroup.scale.x = charGroup.scale.z = 0.35 - Math.sin(t * Math.PI) * 0.01;
+    if (t >= 0.98) { animTime = 0; }
+  }
+
+  // 挥手
+  if (charGroup && currentAnim === 'wave') {
+    charGroup.rotation.y = Math.sin(animTime * 3) * 0.4;
+  }
+
+  ring.rotation.z += dt * 0.15;
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+// ── 响应式 ──
+window.addEventListener('resize', () => {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+});
+
+// ── UI 绑定 ──
+function setCharBtn(name) {
+  document.querySelectorAll('.char-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.char === name);
+  });
+}
+document.querySelectorAll('.char-btn').forEach(btn => {
+  btn.addEventListener('click', () => loadChar(btn.dataset.char));
+});
+
+document.getElementById('btn-idle').addEventListener('click', () => playAnim('idle'));
+document.getElementById('btn-walk').addEventListener('click', () => playAnim('walk'));
+document.getElementById('btn-wave').addEventListener('click', () => playAnim('wave'));
+document.getElementById('btn-jump').addEventListener('click', () => playAnim('jump'));
+
+// ── 启动 ──
+loadChar('default');
+</script>
+</body>
+</html>

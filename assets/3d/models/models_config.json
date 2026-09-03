@@ -1,0 +1,48 @@
+{
+  "models": {
+    "default": {
+      "file": "chibi_default.glb",
+      "name": "默认",
+      "description": "粉裙蓝裤棕发基础款"
+    },
+    "cat_girl": {
+      "file": "chibi_cat_girl.glb",
+      "name": "猫娘",
+      "description": "橙色猫毛+绿色猫眼"
+    },
+    "dark": {
+      "file": "chibi_dark.glb",
+      "name": "暗黑",
+      "description": "深色系朋克风"
+    },
+    "fairy": {
+      "file": "chibi_fairy.glb",
+      "name": "精灵",
+      "description": "淡紫发+魔法感"
+    }
+  },
+  "animations": {
+    "file": "animations.json",
+    "walk": {
+      "frames": 8,
+      "description": "走路循环：手脚摆动+身体起伏"
+    },
+    "idle": {
+      "frames": 4,
+      "description": "待机呼吸：轻微上下浮动+身体微摇"
+    }
+  },
+  "technical": {
+    "vertices_per_model": 58820,
+    "format": "GLB (binary GLTF)",
+    "scale_hint": "角色高约 2.0 单位，建议 scale = 0.3~0.4",
+    "renderer": "Three.js r169",
+    "viewer": "assets/web/chibi_viewer.html",
+    "python_generator": "scripts/generate_3d_model.py"
+  },
+  "usage": {
+    "standalone_viewer": "python -m http.server 8080 --directory assets/web",
+    "threejs_load": "new GLTFLoader().load('chibi_default.glb', gltf => scene.add(gltf.scene))",
+    "flutter_integration": "avatar_viewer.dart postMessage({type:'load', baseUrl:'.../chibi_default.glb'})"
+  }
+}

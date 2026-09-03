@@ -44,3 +44,7 @@ packages/model_viewer_plus/assets/
 packages/model_viewer_plus/example/
 packages/model_viewer_plus/CHANGELOG.md
 packages/model_viewer_plus/LICENSE
+
+# Chibi 3D models (generated, keep manifest in git)
+assets/3d/models/*.glb
+assets/3d/models/*.bin
