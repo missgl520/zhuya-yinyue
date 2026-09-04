@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>竹笌换装系统</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #edf7f0; touch-action: none; }
+    #viewer { width: 100%; height: 100%; display: block; }
+
+    /* ── 加载状态 ── */
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: #edf7f0; z-index: 10;
+      font-family: system-ui, sans-serif;
+      font-size: 15px; color: #4a7a52;
+      transition: opacity 0.6s;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    #loading-box { text-align: center; }
+    #loading-name { font-size: 18px; font-weight: 600; margin-bottom: 14px; color: #3a6a42; }
+    #loading-bar-wrap { width: 160px; height: 3px; background: #c8dcc8; border-radius: 2px; margin: 0 auto 10px; overflow: hidden; }
+    #loading-bar { height: 100%; width: 0%; background: #4a7a52; border-radius: 2px; transition: width 0.3s; }
+    #loading-dots { display: flex; justify-content: center; gap: 4px; margin-bottom: 8px; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #4a7a52; animation: blink 1.2s infinite; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; } 40% { transform: scale(1); opacity: 1; } }
+
+    /* ── 错误提示 ── */
+    #error {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(200, 50, 50, 0.9); color: white; padding: 8px 18px; border-radius: 20px;
+      font-size: 13px; font-family: system-ui, sans-serif; z-index: 20; display: none;
+    }
+
+    /* ── 状态标签 ── */
+    #status-badge {
+      position: fixed; top: 12px; right: 12px;
+      background: rgba(255,255,255,0.8); backdrop-filter: blur(8px);
+      border-radius: 16px; padding: 5px 12px; font-size: 12px;
+      font-family: system-ui, sans-serif; color: #4a7a52;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none;
+    }
+    #status-badge.show { opacity: 1; }
+  </style>
+</head>
+<body>
+<div id="loading">
+  <div id="loading-box">
+    <div id="loading-name">竹 笌</div>
+    <div id="loading-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    <div id="loading-bar-wrap"><div id="loading-bar"></div></div>
+    <div id="loading-text">正在加载角色...</div>
+  </div>
+</div>
+<div id="error"></div>
+<div id="status-badge" id="status-badge"></div>
+<canvas id="viewer"></canvas>
+
+<script type="importmap">{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutlinePass } from 'three/addons/postprocessing/OutlinePass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+
+// ─── 加载进度 ─────────────────────────────────────────
+function setProgress(pct, text) {
+  const bar = document.getElementById('loading-bar');
+  if (bar) bar.style.width = pct + '%';
+  const t = document.getElementById('loading-text');
+  if (t && text) t.textContent = text;
+}
+
+// ─── 场景 ─────────────────────────────────────────────
+const canvas = document.getElementById('viewer');
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: true,
+  powerPreference: 'high-performance',
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xedf7f0);
+scene.fog = new THREE.Fog(0xedf7f0, 10, 25);
+
+// ─── 环境贴图（Blender 风格室内环境光）───────────────
+const pmremGenerator = new THREE.PMREMGenerator(renderer);
+pmremGenerator.compileEquirectangularShader();
+const roomEnv = new RoomEnvironment(renderer);
+const envTexture = pmremGenerator.fromScene(roomEnv).texture;
+scene.environment = envTexture;
+roomEnv.dispose();
+
+// ─── 相机 ─────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 100);
+camera.position.set(0, 1.1, 3.8);
+camera.lookAt(0, 0.85, 0);
+
+// ─── 控制器（鼠标/触摸手势）───────────────────────────
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.85, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.minDistance = 1.2;
+controls.maxDistance = 7;
+controls.maxPolarAngle = Math.PI * 0.88;
+controls.minPolarAngle = Math.PI * 0.05;
+controls.update();
+
+// ─── 后处理 ───────────────────────────────────────────
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+
+// 柔和 Bloom（仅溢出高光区域，不过度曝光）
+const bloomPass = new UnrealBloomPass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  0.25,   // 强度（柔和，不过亮）
+  0.6,    // 半径
+  0.82    // 阈值（仅极高光触发）
+);
+composer.addPass(bloomPass);
+
+// 轮廓描边（选中配件时轻微发光）
+const outlinePass = new OutlinePass(
+  new THREE.Vector2(window.innerWidth, window.innerHeight),
+  scene, camera
+);
+outlinePass.edgeStrength = 2.5;
+outlinePass.edgeGlow = 0.4;
+outlinePass.edgeThickness = 1.0;
+outlinePass.visibleEdgeColor.set(0x6aaa72);
+outlinePass.hiddenEdgeColor.set(0x4a7a52);
+composer.addPass(outlinePass);
+
+composer.addPass(new OutputPass());
+
+// ─── 灯光（Blender 三点布光）───────────────────────────
+// 环境光（强度降低，给主光留空间）
+scene.add(new THREE.AmbientLight(0xfff8f0, 0.4));
+
+// 主光（太阳）— 暖色方向光，投影柔和阴影
+const keyLight = new THREE.DirectionalLight(0xfff5e0, 2.2);
+keyLight.position.set(3.5, 7, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+Object.assign(keyLight.shadow.camera,
+  { near: 0.5, far: 25, left: -3, right: 3, top: 4, bottom: -2 });
+keyLight.shadow.bias = -0.0003;
+keyLight.shadow.normalBias = 0.02;
+scene.add(keyLight);
+
+// 补光 — 冷色，从侧面/下方补，增加立体感
+const fillLight = new THREE.DirectionalLight(0xc8e4ff, 0.8);
+fillLight.position.set(-4, 2, -2);
+scene.add(fillLight);
+
+// 轮廓光 — 背后光，分离主体与背景
+const rimLight = new THREE.DirectionalLight(0xffeedd, 0.6);
+rimLight.position.set(0, 2, -5);
+scene.add(rimLight);
+
+// 半球光（天空/地面环境）
+scene.add(new THREE.HemisphereLight(0xd8ecff, 0xb8d0a0, 0.5));
+
+// ─── 地面 ─────────────────────────────────────────────
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(2.8, 64),
+  new THREE.ShadowMaterial({ opacity: 0.15 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// 地面投影圆（更明显的阴影落点指示）
+const shadowCircle = new THREE.Mesh(
+  new THREE.CircleGeometry(0.7, 48),
+  new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.08,
+    depthWrite: false,
+  })
+);
+shadowCircle.rotation.x = -Math.PI / 2;
+shadowCircle.position.y = 0.001;
+scene.add(shadowCircle);
+
+// 装饰光环（旋转）
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(0.35, 0.42, 64),
+  new THREE.MeshBasicMaterial({
+    color: 0xc8d8c0,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.45,
+  })
+);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.002;
+scene.add(ring);
+
+// ─── GLTF 加载 ─────────────────────────────────────────
+const loader = new GLTFLoader();
+const cache = {};
+
+function setProgress(pct, text) {
+  const bar = document.getElementById('loading-bar');
+  if (bar) bar.style.width = pct + '%';
+  const t = document.getElementById('loading-text');
+  if (t && text) t.textContent = text;
+}
+
+async function loadGLB(url, onProgress) {
+  if (cache[url]) return cache[url].scene.clone(true);
+  return new Promise((resolve, reject) => {
+    loader.load(
+      url,
+      gltf => {
+        cache[url] = gltf;
+        const clone = gltf.scene.clone(true);
+        clone.userData.gltfAnimations = gltf.animations;
+        resolve(clone);
+      },
+      xhr => {
+        if (onProgress && xhr.lengthComputable) {
+          onProgress(xhr.loaded / xhr.total);
+        }
+      },
+      err => { console.warn('Load failed:', url, err); reject(err); }
+    );
+  });
+}
+
+// ─── 角色部件 ──────────────────────────────────────────
+let baseGroup = null;
+const accessoryGroups = { hair: null, top: null, bottom: null, shoes: null, eye: null };
+
+// ─── 动画状态机 ────────────────────────────────────────
+// animMode: 'idle' | 'walk' | 'transition'
+let animMode = 'idle';
+let mixer = null;
+let currentAction = null;
+let nextAction = null;
+let idleT = 0;
+let baseIdleY = 0;
+let isTransitioning = false;
+let transitionProgress = 0;
+const TRANSITION_DURATION = 0.4; // 秒
+
+function crossFadeTo(newAction, duration = 0.4) {
+  if (!mixer || !newAction) return;
+  if (currentAction === newAction) return;
+  isTransitioning = true;
+  transitionProgress = 0;
+  nextAction = newAction;
+  currentAction.crossFadeTo(newAction, duration, true);
+  currentAction = newAction;
+  animMode = newAction === walkAction ? 'walk' : 'idle';
+}
+
+// 播放走路动画（GLB 内嵌骨骼动画）
+function playWalk() {
+  if (!baseGroup) return;
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+
+  const clips = baseGroup.userData.gltfAnimations || [];
+  if (!clips.length) {
+    // 没有内嵌动画 → 手动走路摆动（备用）
+    startManualWalk();
+    return;
+  }
+
+  mixer = new THREE.AnimationMixer(baseGroup);
+  const clip =
+    THREE.AnimationClip.findByName(clips, 'Walk')     ||
+    THREE.AnimationClip.findByName(clips, 'walk')     ||
+    THREE.AnimationClip.findByName(clips, 'Walking')  ||
+    clips.find(c => /walk/i.test(c.name))             ||
+    clips[0];
+
+  walkAction = mixer.clipAction(clip);
+  walkAction.setLoop(THREE.LoopRepeat, Infinity);
+  walkAction.reset().fadeIn(0.3).play();
+  currentAction = walkAction;
+  animMode = 'walk';
+
+  // 配件跟随
+  syncAccessories();
+}
+
+// 停止走路，恢复待机呼吸
+function stopWalk() {
+  if (walkAction) {
+    walkAction.fadeOut(0.3);
+    setTimeout(() => { walkAction.stop(); walkAction = null; }, 400);
+  }
+  animMode = 'idle';
+  if (baseGroup) baseGroup.rotation.y = 0;
+  syncAccessories();
+}
+
+// 手动走路（无骨骼动画时的替代）
+let manualWalkT = 0;
+function startManualWalk() {
+  animMode = 'walk';
+}
+function updateManualWalk(dt) {
+  if (animMode !== 'walk' || baseGroup) return;
+  manualWalkT += dt;
+  baseGroup.position.y = baseIdleY + Math.abs(Math.sin(manualWalkT * 4)) * 0.05;
+}
+
+// 配件位置同步（跟随 baseGroup 位移/旋转）
+function syncAccessories() {
+  Object.values(accessoryGroups).forEach(g => {
+    if (!g || !baseGroup) return;
+    g.position.y = baseGroup.position.y;
+    g.rotation.y = baseGroup.rotation.y;
+  });
+}
+
+// 待机呼吸动画（Blender 风格微小浮动 + 轻微摆动）
+function updateIdle(dt) {
+  if (animMode !== 'idle' || !baseGroup) return;
+  idleT += dt;
+  const breathY = Math.sin(idleT * 1.3) * 0.007;
+  const sway   = Math.sin(idleT * 0.7) * 0.025;
+  baseGroup.position.y = baseIdleY + breathY;
+  baseGroup.rotation.y = sway;
+  syncAccessories();
+}
+
+// 渲染循环
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05); // 限制最大步长，避免跳帧
+  if (mixer) mixer.update(dt);
+  updateIdle(dt);
+  ring.rotation.z += dt * 0.12;
+  controls.update();
+  composer.render();
+}
+animate();
+
+// ─── 响应式 ────────────────────────────────────────────
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+// ─── 加载状态 ──────────────────────────────────────────
+function hideLoading() {
+  const el = document.getElementById('loading');
+  if (el) { el.classList.add('hidden'); setTimeout(() => el.remove(), 700); }
+}
+function showError(msg) {
+  const el = document.getElementById('error');
+  if (el) { el.textContent = msg; el.style.display = 'block'; }
+  setTimeout(() => { el.style.display = 'none'; }, 5000);
+}
+function showBadge(text) {
+  const el = document.getElementById('status-badge');
+  if (el) { el.textContent = text; el.classList.add('show'); }
+  setTimeout(() => { if (el) el.classList.remove('show'); }, 2000);
+}
+
+// ─── 基础模型加载（带过渡动画）────────────────────────
+async function loadBase(url, progressPct = 30) {
+  setProgress(progressPct, '加载模型...');
+  if (baseGroup) {
+    // 淡出旧模型
+    const old = baseGroup;
+    let t = 0;
+    const fadeOut = setInterval(() => {
+      t += 0.05;
+      old.traverse(c => {
+        if (c.isMesh && c.material) {
+          c.material.transparent = true;
+          c.material.opacity = Math.max(0, 1 - t);
+        }
+      });
+      if (t >= 1) { clearInterval(fadeOut); scene.remove(old); }
+    }, 16);
+    await new Promise(r => setTimeout(r, 500));
+  }
+
+  setProgress(50, '加载中...');
+  if (mixer) { mixer.stopAllAction(); mixer = null; }
+  walkAction = null;
+  animMode = 'idle';
+  idleT = 0;
+
+  try {
+    baseGroup = await loadGLB(url);
+    baseGroup.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+        // 启用次表面散射近似（人物皮肤感）
+        if (c.material) {
+          c.material.shadowSide = THREE.DoubleSide;
+        }
+      }
+    });
+
+    // 初始淡入
+    baseGroup.traverse(c => {
+      if (c.isMesh && c.material) {
+        c.material.transparent = true;
+        c.material.opacity = 0;
+      }
+    });
+    scene.add(baseGroup);
+    baseIdleY = baseGroup.position.y;
+
+    let t = 0;
+    const fadeIn = setInterval(() => {
+      t += 0.06;
+      baseGroup.traverse(c => {
+        if (c.isMesh && c.material) {
+          c.material.opacity = Math.min(1, t);
+          if (t >= 1) { c.material.transparent = false; }
+        }
+      });
+      if (t >= 1.3) clearInterval(fadeIn);
+    }, 16);
+
+    setProgress(100, '完成');
+    hideLoading();
+    showBadge('角色已就绪 ✨');
+  } catch (e) {
+    showError('基础模型加载失败');
+    hideLoading();
+  }
+}
+
+// ─── 配件加载（带高亮提示）─────────────────────────────
+async function loadAccessory(category, url) {
+  if (accessoryGroups[category]) {
+    scene.remove(accessoryGroups[category]);
+    accessoryGroups[category].traverse(c => {
+      if (c.isMesh) { c.geometry?.dispose(); c.material?.dispose(); }
+    });
+    accessoryGroups[category] = null;
+  }
+  if (!url) return;
+
+  try {
+    const g = await loadGLB(url);
+    g.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+        if (category === 'eye') { c.renderOrder = 1; }
+      }
+    });
+    // 新配件也淡入
+    g.traverse(c => {
+      if (c.isMesh && c.material) {
+        c.material.transparent = true;
+        c.material.opacity = 0;
+      }
+    });
+    accessoryGroups[category] = g;
+    scene.add(g);
+
+    // 同步位置
+    syncAccessories();
+
+    // 淡入动画
+    let t = 0;
+    const fi = setInterval(() => {
+      t += 0.08;
+      g.traverse(c => {
+        if (c.isMesh && c.material) {
+          c.material.opacity = Math.min(1, t);
+          if (t >= 1) c.material.transparent = false;
+        }
+      });
+      if (t >= 1.3) clearInterval(fi);
+    }, 16);
+
+    showBadge({ hair: '发型已更换 💇', top: '上装已更换 👕', bottom: '下装已更换 👖', shoes: '鞋子已更换 👟', eye: '瞳色已切换 👁' }[category] || '已更新');
+  } catch (e) {
+    console.warn('Accessory load failed:', category, url, e);
+  }
+}
+
+// ─── Flutter 通信 ──────────────────────────────────────
+window.addEventListener('message', async (event) => {
+  const raw = event.data;
+  const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+  switch (data.type) {
+    case 'load':
+      setProgress(10, '准备加载...');
+      await loadBase(data.baseUrl, 20);
+      const items = ['hair', 'top', 'bottom', 'shoes'];
+      for (const cat of items) {
+        const key = cat + 'Url';
+        if (data[key]) await loadAccessory(cat, data[key]);
+      }
+      if (data.eyeUrl) await loadAccessory('eye', data.eyeUrl);
+      break;
+    case 'hair':    await loadAccessory('hair',   data.url || null); break;
+    case 'top':     await loadAccessory('top',    data.url || null); break;
+    case 'bottom':  await loadAccessory('bottom', data.url || null); break;
+    case 'shoes':   await loadAccessory('shoes',  data.url || null); break;
+    case 'eye':
+    case 'eyeColor': await loadAccessory('eye', data.url || null); break;
+    case 'playWalk':  playWalk(); showBadge('开始走路 🚶'); break;
+    case 'stopWalk':
+      stopWalk();
+      showBadge('停下休息 💤');
+      break;
+    case 'rotateTo':
+      if (baseGroup && data.angle !== undefined)
+        baseGroup.rotation.y = data.angle;
+      break;
+  }
+});
+
+hideLoading();
+</script>
+</body>
+</html>
