@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>骨骼动画测试</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #1a1a2e; }
+    #viewer { width: 100%; height: calc(100% - 60px); display: block; }
+    #controls {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 60px; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center; gap: 12px;
+      font-family: system-ui, sans-serif;
+    }
+    .btn {
+      padding: 8px 20px; border: none; border-radius: 20px;
+      font-size: 14px; cursor: pointer; background: #4a4a8a; color: white;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #6a6aaa; }
+    .btn.active { background: #7ec8a0; color: #1a1a2e; font-weight: bold; }
+  </style>
+</head>
+<body>
+<canvas id="viewer"></canvas>
+<div id="controls">
+  <button class="btn" onclick="playAnim('idle')">待机 idle</button>
+  <button class="btn" onclick="playAnim('walk')">走路 walk</button>
+  <button class="btn" onclick="playAnim('wave')">挥手 wave</button>
+  <button class="btn" onclick="playAnim('jump')">跳跃 jump</button>
+</div>
+
+<script type="importmap">{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const BASE = '/zhuya-yinyue/assets/3d/models/';
+const AVATAR = '/zhuya-yinyue/assets/vrm_test/avatar_system/';
+
+const canvas = document.getElementById('viewer');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.setSize(window.innerWidth, window.innerHeight);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+
+// 环境
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(renderer)).texture;
+pmrem.dispose();
+
+// 相机
+const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.05, 100);
+camera.position.set(0, 1.5, 4.5);
+camera.lookAt(0, 0.8, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.8, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.minDistance = 1.5;
+controls.maxDistance = 10;
+controls.update();
+
+// 灯光
+scene.add(new THREE.AmbientLight(0xfff8f0, 0.5));
+const key = new THREE.DirectionalLight(0xfff5e0, 2.5);
+key.position.set(3, 6, 4);
+key.castShadow = true;
+key.shadow.mapSize.set(2048, 2048);
+scene.add(key);
+scene.add(new THREE.DirectionalLight(0xc8e4ff, 0.9));
+scene.add(new THREE.HemisphereLight(0xd8ecff, 0xb8d0a0, 0.6));
+
+// 地面
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(3, 64),
+  new THREE.ShadowMaterial({ opacity: 0.3 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// 加载器
+const loader = new GLTFLoader();
+let mixer = null;
+let currentAction = null;
+let model = null;
+const bones = {}; // name -> bone
+
+// 缩放：default_anim 模型 Y 范围 -0.694~0.210，总高 0.904
+// base_female Y 范围 0~1.557，总高 1.557
+// 目标高度 1.557 / 0.904 ≈ 1.72
+const SCALE = 1.72;
+const Y_OFFSET = 0.694 * SCALE; // 把脚放到 Y=0
+
+async function loadModel() {
+  const gltf = await new Promise((res, rej) => loader.load(BASE + 'default_anim.glb', res, undefined, rej));
+
+  model = gltf.scene;
+  model.scale.setScalar(SCALE);
+  model.position.y = Y_OFFSET;
+  scene.add(model);
+
+  // 找骨骼节点
+  model.traverse(node => {
+    if (node.isBone || node.isSkinnedMesh) {
+      bones[node.name || node.id] = node;
+    }
+  });
+  console.log('Bones found:', Object.keys(bones));
+  console.log('Animations:', gltf.animations.map(a => a.name));
+
+  // 骨骼动画混流器
+  mixer = new THREE.AnimationMixer(model);
+
+  // 打印骨骼世界坐标（调试用）
+  model.updateMatrixWorld(true);
+  for (const [name, bone] of Object.entries(bones)) {
+    const wp = new THREE.Vector3();
+    bone.getWorldPosition(wp);
+    console.log(`Bone ${name}: worldY=${wp.y.toFixed(3)}`);
+  }
+
+  // 默认播 idle
+  playAnim('idle');
+
+  animate();
+}
+
+function playAnim(name) {
+  if (!mixer || !model) return;
+  const clip = THREE.AnimationClip.findByName(model.userData.gltfAnimations || [], name)
+    || THREE.AnimationClip.findByName(model.animations || [], name);
+  if (!clip) { console.warn('No clip:', name); return; }
+
+  const action = mixer.clipAction(clip);
+  action.reset();
+  if (currentAction) action.crossFadeFrom(currentAction, 0.35, true);
+  action.setLoop(THREE.LoopRepeat, Infinity);
+  action.play();
+  currentAction = action;
+
+  document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+  event?.target?.classList.add('active');
+}
+
+// 如果 avatar_viewer 需要用到 accessory parts，可以在这里测试叠加
+// 目前只展示骨骼动画
+loadModel().catch(console.error);
+
+const clock = new THREE.Clock();
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (mixer) mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

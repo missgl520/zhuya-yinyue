@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>3D 换装系统 · 自己写的</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0d1117; font-family: system-ui, sans-serif; }
+    #canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+
+    /* ── 底部换装面板 ─────────────────────────────── */
+    #panel {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(13,17,23,0.92); backdrop-filter: blur(12px);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding: 10px 12px 12px;
+      display: flex; flex-direction: column; gap: 8px;
+      z-index: 10;
+    }
+    .row {
+      display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none;
+    }
+    .row::-webkit-scrollbar { display: none; }
+    .row-label {
+      font-size: 12px; color: #8b949e; white-space: nowrap; min-width: 48px;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.05); color: #c9d1d9;
+      font-size: 13px; cursor: pointer; white-space: nowrap;
+      transition: all 0.18s; user-select: none;
+    }
+    .chip:hover { border-color: rgba(100,200,120,0.5); background: rgba(100,200,120,0.1); }
+    .chip.active {
+      border-color: #7ec8a0; background: rgba(126,200,160,0.18);
+      color: #7ec8a0; font-weight: 600;
+    }
+    .chip .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #555; flex-shrink: 0;
+    }
+    .chip.active .dot { box-shadow: 0 0 6px currentColor; }
+
+    /* ── 顶部状态栏 ───────────────────────────────── */
+    #topbar {
+      position: fixed; top: 0; left: 0; right: 0;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 16px;
+      background: linear-gradient(to bottom, rgba(13,17,23,0.9), transparent);
+      z-index: 10;
+    }
+    #topbar .title { color: #7ec8a0; font-size: 15px; font-weight: 600; letter-spacing: 0.5px; }
+    #bone-count { color: #58a6ff; font-size: 12px; }
+    #fps-counter { color: #8b949e; font-size: 12px; }
+
+    /* ── 骨骼信息弹窗 ─────────────────────────────── */
+    #skeleton-info {
+      position: fixed; top: 50px; right: 12px;
+      background: rgba(13,17,23,0.9); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #c9d1d9;
+      min-width: 180px; z-index: 10; display: none;
+    }
+    #skeleton-info.show { display: block; }
+    #skeleton-info .bone-row { display: flex; justify-content: space-between; padding: 2px 0; }
+    #skeleton-info .bone-key { color: #8b949e; }
+    #skeleton-info .bone-val { color: #58a6ff; font-weight: 600; }
+
+    /* ── 动画切换 ─────────────────────────────────── */
+    #anim-row {
+      display: flex; gap: 6px; align-items: center;
+    }
+    .anim-btn {
+      padding: 4px 12px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.12);
+      background: transparent; color: #8b949e; font-size: 12px; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .anim-btn:hover { color: #c9d1d9; border-color: rgba(255,255,255,0.3); }
+    .anim-btn.active { border-color: #58a6ff; color: #58a6ff; background: rgba(88,166,255,0.12); }
+
+    /* ── 加载提示 ─────────────────────────────────── */
+    #loading-tip {
+      position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
+      color: #7ec8a0; font-size: 14px; z-index: 20; text-align: center;
+      pointer-events: none; transition: opacity 0.5s;
+    }
+    #loading-tip.hidden { opacity: 0; }
+    .tip-sub { color: #8b949e; font-size: 12px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<!-- 顶部状态栏 -->
+<div id="topbar">
+  <span class="title">🎮 3D 换装系统</span>
+  <div style="display:flex;gap:12px;align-items:center">
+    <span id="bone-count">骨骼: —</span>
+    <span id="fps-counter">FPS: —</span>
+    <button class="chip" onclick="toggleSkeletonInfo()" style="padding:3px 10px;font-size:11px">骨架</button>
+  </div>
+</div>
+
+<!-- 骨骼信息 -->
+<div id="skeleton-info">
+  <div style="color:#7ec8a0;font-weight:600;margin-bottom:8px">🦴 骨骼信息</div>
+  <div class="bone-row"><span class="bone-key">根节点</span><span class="bone-val" id="si-root">—</span></div>
+  <div class="bone-row"><span class="bone-key">关节数</span><span class="bone-val" id="si-count">—</span></div>
+  <div class="bone-row"><span class="bone-key">动画通道</span><span class="bone-val" id="si-channels">—</span></div>
+  <div class="bone-row"><span class="bone-key">蒙皮网格</span><span class="bone-val" id="si-mesh">—</span></div>
+  <div class="bone-row"><span class="bone-key">顶点权重</span><span class="bone-val" id="si-verts">—</span></div>
+  <div style="margin-top:8px;color:#8b949e;font-size:11px">点击骨骼可高亮</div>
+</div>
+
+<!-- 加载提示 -->
+<div id="loading-tip">
+  加载中...
+  <div class="tip-sub">正在解析骨骼动画数据</div>
+</div>
+
+<!-- 换装面板 -->
+<div id="panel">
+  <!-- 动画 -->
+  <div class="row" id="anim-row">
+    <span class="row-label">动画</span>
+    <button class="anim-btn active" onclick="switchAnim('idle',this)">待机</button>
+    <button class="anim-btn" onclick="switchAnim('walk',this)">走路</button>
+    <button class="anim-btn" onclick="switchAnim('wave',this)">挥手</button>
+    <button class="anim-btn" onclick="switchAnim('jump',this)">跳跃</button>
+  </div>
+  <!-- 头发 -->
+  <div class="row">
+    <span class="row-label">发型</span>
+    <div class="chip" onclick="toggleChip(this,'hair','none')"><span class="dot" style="background:#555"></span>无</div>
+    <div class="chip active" onclick="toggleChip(this,'hair','long')"><span class="dot" style="background:#8B4513"></span>长发</div>
+    <div class="chip" onclick="toggleChip(this,'hair','short')"><span class="dot" style="background:#1a1a1a"></span>短发</div>
+    <div class="chip" onclick="toggleChip(this,'hair','twin')"><span class="dot" style="background:#c8649f"></span>双马尾</div>
+    <div class="chip" onclick="toggleChip(this,'hair','pony')"><span class="dot" style="background:#e8c87a"></span>马尾</div>
+  </div>
+  <!-- 上装 -->
+  <div class="row">
+    <span class="row-label">上装</span>
+    <div class="chip" onclick="toggleChip(this,'top','none')">无</div>
+    <div class="chip active" onclick="toggleChip(this,'top','tshirt')"><span class="dot" style="background:#4a90d9"></span>T恤</div>
+    <div class="chip" onclick="toggleChip(this,'top','hoodie')"><span class="dot" style="background:#2d3748"></span>卫衣</div>
+    <div class="chip" onclick="toggleChip(this,'top','dress-top')"><span class="dot" style="background:#e8a0b5"></span>连衣裙上</div>
+  </div>
+  <!-- 下装 -->
+  <div class="row">
+    <span class="row-label">下装</span>
+    <div class="chip" onclick="toggleChip(this,'bottom','none')">无</div>
+    <div class="chip active" onclick="toggleChip(this,'bottom','pants')"><span class="dot" style="background:#3d5a80"></span>裤子</div>
+    <div class="chip" onclick="toggleChip(this,'bottom','skirt')"><span class="dot" style="background:#e8a0b5"></span>裙子</div>
+  </div>
+  <!-- 鞋子 -->
+  <div class="row">
+    <span class="row-label">鞋子</span>
+    <div class="chip" onclick="toggleChip(this,'shoes','none')">无</div>
+    <div class="chip active" onclick="toggleChip(this,'shoes','sneaker')"><span class="dot" style="background:#ffffff"></span>运动鞋</div>
+    <div class="chip" onclick="toggleChip(this,'shoes','boot')"><span class="dot" style="background:#5c3d2e"></span>靴子</div>
+  </div>
+</div>
+
+<script type="importmap">{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ═══════════════════════════════════════════════════════════
+//  第一部分：自己写的 3D 容器系统
+// ═══════════════════════════════════════════════════════════
+class Scene3D {
+  constructor(canvas) {
+    // ── 渲染器 ──
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: true,
+      powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.1;
+
+    // ── 场景 ──
+    this.scene = new THREE.Scene();
+    this.scene.background = new THREE.Color(0x0d1117);
+    this.scene.fog = new THREE.Fog(0x0d1117, 15, 35);
+
+    // ── 环境光（自己写的光照系统）──
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(this.renderer)).texture;
+    pmrem.dispose();
+
+    // 三点布光（自己写）
+    this._setupLights();
+
+    // ── 相机（自己写）──
+    this.camera = new THREE.PerspectiveCamera(
+      40, window.innerWidth / window.innerHeight, 0.05, 100
+    );
+    this.camera.position.set(0, 1.6, 4.2);
+    this.camera.lookAt(0, 0.85, 0);
+
+    // ── 镜头控制器（自己写）──
+    this.controls = new OrbitControls(this.camera, canvas);
+    this.controls.target.set(0, 0.85, 0);
+    this.controls.enableDamping = true;
+    this.controls.dampingFactor = 0.08;
+    this.controls.minDistance = 1.2;
+    this.controls.maxDistance = 9;
+    this.controls.minPolarAngle = 0.1;
+    this.controls.maxPolarAngle = Math.PI * 0.85;
+
+    // ── 地面（自己写）──
+    this._setupGround();
+
+    // ── 尺寸响应（自己写）──
+    this._resize();
+    window.addEventListener('resize', () => this._resize());
+  }
+
+  _setupLights() {
+    // 环境光
+    const ambient = new THREE.AmbientLight(0xfff8f0, 0.45);
+    this.scene.add(ambient);
+
+    // 主光（太阳光）
+    const key = new THREE.DirectionalLight(0xfff5e0, 2.8);
+    key.position.set(3.5, 7, 4);
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    Object.assign(key.shadow.camera, { near: 0.5, far: 25, left: -3, right: 3, top: 4, bottom: -2 });
+    key.shadow.bias = -0.0003;
+    key.shadow.normalBias = 0.02;
+    this.scene.add(key);
+
+    // 补光（冷色）
+    const fill = new THREE.DirectionalLight(0xc8e4ff, 0.9);
+    fill.position.set(-4, 2, -2);
+    this.scene.add(fill);
+
+    // 轮廓光
+    const rim = new THREE.DirectionalLight(0xffeedd, 0.7);
+    rim.position.set(0, 2, -5);
+    this.scene.add(rim);
+
+    // 半球光
+    this.scene.add(new THREE.HemisphereLight(0xd8ecff, 0xb8d0a0, 0.55));
+  }
+
+  _setupGround() {
+    const ground = new THREE.Mesh(
+      new THREE.CircleGeometry(3, 64),
+      new THREE.ShadowMaterial({ opacity: 0.3 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    this.scene.add(ground);
+
+    // 投影圆
+    const shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.7, 48),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.12, depthWrite: false })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.001;
+    this.scene.add(shadow);
+  }
+
+  _resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    this.renderer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+  }
+
+  // 渲染一帧
+  render() {
+    this.controls.update();
+    this.renderer.render(this.scene, this.camera);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  第二部分：自己写的模型加载器
+// ═══════════════════════════════════════════════════════════
+class ModelLoader {
+  constructor() {
+    this.loader = new GLTFLoader();
+    this.cache = {};        // 缓存已加载模型
+    this.bones = {};        // 骨骼节点映射
+    this.skeleton = null;   // 骨骼对象
+  }
+
+  // 加载 GLB/GLTF，返回 { scene, animations, bones, skeleton }
+  async load(url) {
+    if (this.cache[url]) {
+      return this.cache[url];
+    }
+    return new Promise((resolve, reject) => {
+      this.loader.load(
+        url,
+        (gltf) => {
+          const result = this._parseGLTF(gltf);
+          this.cache[url] = result;
+          resolve(result);
+        },
+        undefined,
+        (err) => { console.error('Load error:', err); reject(err); }
+      );
+    });
+  }
+
+  // 解析 GLTF 结构，提取骨骼信息（自己写）
+  _parseGLTF(gltf) {
+    const bones = {};
+    const skinnedMeshes = [];
+
+    gltf.scene.traverse(node => {
+      if (node.isBone) {
+        bones[node.name] = node;
+      }
+      if (node.isSkinnedMesh) {
+        skinnedMeshes.push(node);
+      }
+    });
+
+    // 找 skeleton
+    let skeleton = null;
+    if (skinnedMeshes.length > 0 && skinnedMeshes[0].skeleton) {
+      skeleton = skinnedMeshes[0].skeleton;
+    }
+
+    // 打印骨骼结构
+    console.log('[ModelLoader] 骨骼节点:', Object.keys(bones));
+    console.log('[ModelLoader] 动画片段:', gltf.animations.map(a => a.name));
+    console.log('[ModelLoader] 蒙皮网格:', skinnedMeshes.length);
+
+    // 更新全局引用
+    this.bones = bones;
+    this.skeleton = skeleton;
+
+    return {
+      scene: gltf.scene,
+      animations: gltf.animations,
+      bones,
+      skeleton,
+      skinnedMeshes,
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  第三部分：自己写的动画播放器
+// ═══════════════════════════════════════════════════════════
+class AnimationPlayer {
+  constructor(mixer) {
+    this.mixer = mixer;
+    this.actions = {};   // name -> AnimationAction
+    this.current = null;
+  }
+
+  // 准备动画片段
+  prepareClip(animations) {
+    animations.forEach(clip => {
+      const name = clip.name.toLowerCase();
+      const action = this.mixer.clipAction(clip);
+      action.setLoop(THREE.LoopRepeat, Infinity);
+      this.actions[name] = action;
+      // idle 默认播放，其他暂停
+      if (name === 'idle' || name === 'walk') {
+        action.play();
+        this.current = action;
+      } else {
+        action.enabled = true;
+        action.paused = true;
+      }
+    });
+    console.log('[AnimationPlayer] 已准备动画:', Object.keys(this.actions));
+  }
+
+  // 切换动画（带平滑过渡）
+  crossFadeTo(targetName, duration = 0.4) {
+    const name = targetName.toLowerCase();
+    const next = this.actions[name];
+    if (!next) { console.warn('[AnimationPlayer] 未找到动画:', name); return; }
+    if (this.current === next) return;
+
+    next.reset();
+    if (this.current) {
+      this.current.crossFadeTo(next, duration, true);
+    }
+    next.play();
+    this.current = next;
+    console.log('[AnimationPlayer] 切换到:', name);
+  }
+
+  // 更新（每帧调用）
+  update(dt) {
+    this.mixer.update(dt);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  第四部分：自己写的换装系统
+// ═══════════════════════════════════════════════════════════
+class OutfitSystem {
+  constructor(scene, bones, rootBoneName = 'Root') {
+    this.scene = scene;
+    this.bones = bones;
+    this.rootBoneName = rootBoneName;
+    this.parts = {};    // category -> Group
+    this.rootBone = bones[rootBoneName] || null;
+  }
+
+  // 挂载一个配件到指定骨骼
+  async mount(category, geometryFn) {
+    // 卸载旧的
+    this.unmount(category);
+
+    // 生成新配件几何体
+    const mesh = await geometryFn();
+    if (!mesh) return;
+
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+
+    // 创建组
+    const group = new THREE.Group();
+    group.add(mesh);
+    this.scene.add(group);
+    this.parts[category] = group;
+
+    // 如果有对应骨骼，绑定到骨骼
+    if (this.rootBone) {
+      this.rootBone.add(group);
+      group.position.set(0, 0, 0);
+    }
+  }
+
+  // 挂载预设几何体（这里用程序生成的，方便演示）
+  async mountPreset(category, preset) {
+    const geometryFn = () => this._createGeometry(category, preset);
+    await this.mount(category, geometryFn);
+  }
+
+  // 卸载
+  unmount(category) {
+    const g = this.parts[category];
+    if (g) {
+      this.scene.remove(g);
+      g.traverse(c => { c.geometry?.dispose(); c.material?.dispose(); });
+      delete this.parts[category];
+    }
+  }
+
+  // 卸载全部
+  unmountAll() {
+    Object.keys(this.parts).forEach(k => this.unmount(k));
+  }
+
+  // ── 程序生成换装几何体（自己写）──
+  _createGeometry(category, preset) {
+    const mat = this._getMaterial(category, preset);
+    if (!mat) return null;
+
+    switch (category) {
+      case 'hair': return this._hair(preset, mat);
+      case 'top':  return this._top(preset, mat);
+      case 'bottom': return this._bottom(preset, mat);
+      case 'shoes': return this._shoes(preset, mat);
+      default: return null;
+    }
+  }
+
+  _getMaterial(category, preset) {
+    const configs = {
+      hair:    { long: new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.8, metalness: 0.1 }),
+                 short: new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.7, metalness: 0.1 }),
+                 twin:  new THREE.MeshStandardMaterial({ color: 0xc8649f, roughness: 0.8, metalness: 0.1 }),
+                 pony:  new THREE.MeshStandardMaterial({ color: 0xe8c87a, roughness: 0.7, metalness: 0.1 }) },
+      top:     { tshirt: new THREE.MeshStandardMaterial({ color: 0x4a90d9, roughness: 0.6, metalness: 0.0 }),
+                 hoodie: new THREE.MeshStandardMaterial({ color: 0x2d3748, roughness: 0.7, metalness: 0.0 }),
+                 'dress-top': new THREE.MeshStandardMaterial({ color: 0xe8a0b5, roughness: 0.5, metalness: 0.0 }) },
+      bottom:  { pants:  new THREE.MeshStandardMaterial({ color: 0x3d5a80, roughness: 0.7, metalness: 0.0 }),
+                 skirt:  new THREE.MeshStandardMaterial({ color: 0xe8a0b5, roughness: 0.5, metalness: 0.0 }) },
+      shoes:   { sneaker: new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.4, metalness: 0.1 }),
+                 boot:  new THREE.MeshStandardMaterial({ color: 0x5c3d2e, roughness: 0.6, metalness: 0.1 }) },
+    };
+    return configs[category]?.[preset] || null;
+  }
+
+  // 发型几何体（程序生成，不是模型文件）
+  _hair(preset, mat) {
+    const g = new THREE.Group();
+
+    if (preset === 'long') {
+      // 头部主体
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16), mat);
+      head.scale.set(1, 1.1, 0.9);
+      head.position.set(0, 1.47, -0.02);
+      g.add(head);
+
+      // 垂下发丝
+      for (let i = 0; i < 14; i++) {
+        const strand = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.03, 0.01, 0.7 + Math.random() * 0.4, 6),
+          mat
+        );
+        const angle = (i / 14) * Math.PI * 2;
+        strand.position.set(
+          Math.sin(angle) * 0.22,
+          1.1,
+          Math.cos(angle) * 0.18 - 0.02
+        );
+        strand.rotation.z = Math.sin(angle) * 0.15;
+        strand.rotation.x = Math.cos(angle) * 0.1;
+        g.add(strand);
+      }
+
+      // 刘海
+      const bangs = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.14, 0.06), mat);
+      bangs.position.set(0, 1.55, 0.22);
+      bangs.rotation.x = -0.2;
+      g.add(bangs);
+
+    } else if (preset === 'short') {
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.265, 16, 16), mat);
+      head.scale.set(1, 1.0, 0.9);
+      head.position.set(0, 1.47, -0.02);
+      g.add(head);
+
+      // 顶部短发
+      const top = new THREE.Mesh(new THREE.SphereGeometry(0.27, 12, 12), mat);
+      top.scale.set(1.05, 0.6, 1.0);
+      top.position.set(0, 1.65, -0.02);
+      g.add(top);
+
+    } else if (preset === 'twin') {
+      // 双马尾
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16), mat);
+      head.scale.set(1, 1.05, 0.9);
+      head.position.set(0, 1.47, -0.02);
+      g.add(head);
+
+      // 两个马尾
+      for (let side of [-1, 1]) {
+        const tail = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.055, 0.025, 0.65, 8),
+          mat
+        );
+        tail.position.set(side * 0.24, 1.25, 0.0);
+        tail.rotation.z = side * 0.3;
+        g.add(tail);
+
+        // 发圈
+        const band = new THREE.Mesh(
+          new THREE.TorusGeometry(0.06, 0.015, 6, 12),
+          new THREE.MeshStandardMaterial({ color: 0xff6b9d })
+        );
+        band.position.set(side * 0.24, 1.45, 0);
+        band.rotation.z = Math.PI / 2;
+        g.add(band);
+      }
+
+    } else if (preset === 'pony') {
+      const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 16), mat);
+      head.scale.set(1, 1.05, 0.9);
+      head.position.set(0, 1.47, -0.02);
+      g.add(head);
+
+      // 马尾
+      const tail = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.03, 0.55, 8),
+        mat
+      );
+      tail.position.set(0, 1.72, -0.12);
+      tail.rotation.x = -0.5;
+      g.add(tail);
+    }
+
+    return g;
+  }
+
+  // 上装几何体
+  _top(preset, mat) {
+    const g = new THREE.Group();
+
+    if (preset === 'tshirt') {
+      // 身体主体
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.5, 0.32), mat);
+      body.position.set(0, 1.0, 0);
+      g.add(body);
+
+      // 领口
+      const collar = new THREE.Mesh(
+        new THREE.TorusGeometry(0.1, 0.025, 8, 16, Math.PI),
+        new THREE.MeshStandardMaterial({ color: 0x3a7fc1 })
+      );
+      collar.position.set(0, 1.27, 0.13);
+      collar.rotation.x = Math.PI / 2;
+      g.add(collar);
+
+      // 袖子
+      for (let side of [-1, 1]) {
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.22, 8), mat);
+        sleeve.position.set(side * 0.35, 1.15, 0);
+        sleeve.rotation.z = side * 0.3;
+        g.add(sleeve);
+      }
+
+    } else if (preset === 'hoodie') {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.55, 0.35), mat);
+      body.position.set(0, 0.98, 0);
+      g.add(body);
+
+      // 帽子
+      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 12), mat);
+      hood.scale.set(1, 0.8, 0.8);
+      hood.position.set(0, 1.5, -0.05);
+      g.add(hood);
+
+      // 帽子下垂
+      const hoodBack = new THREE.Mesh(new THREE.SphereGeometry(0.18, 10, 10), mat);
+      hoodBack.scale.set(1, 0.6, 0.5);
+      hoodBack.position.set(0, 1.38, -0.12);
+      g.add(hoodBack);
+
+      // 拉链
+      const zip = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.01, 0.5, 4),
+        new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.9 })
+      );
+      zip.position.set(0, 1.05, 0.17);
+      g.add(zip);
+
+      // 袖子
+      for (let side of [-1, 1]) {
+        const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.14, 0.28, 8), mat);
+        sleeve.position.set(side * 0.37, 1.12, 0);
+        sleeve.rotation.z = side * 0.25;
+        g.add(sleeve);
+      }
+
+    } else if (preset === 'dress-top') {
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.5, 12), mat);
+      body.position.set(0, 1.0, 0);
+      g.add(body);
+
+      // 肩带
+      for (let side of [-1, 1]) {
+        const strap = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.15, 6), mat);
+        strap.position.set(side * 0.15, 1.3, 0.0);
+        strap.rotation.z = side * 0.3;
+        g.add(strap);
+      }
+    }
+
+    return g;
+  }
+
+  // 下装几何体
+  _bottom(preset, mat) {
+    const g = new THREE.Group();
+
+    if (preset === 'pants') {
+      // 腰部
+      const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.23, 0.12, 12), mat);
+      waist.position.set(0, 0.76, 0);
+      g.add(waist);
+
+      // 左腿
+      const lLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.55, 8), mat);
+      lLeg.position.set(-0.12, 0.43, 0);
+      g.add(lLeg);
+
+      // 右腿
+      const rLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.55, 8), mat);
+      rLeg.position.set(0.12, 0.43, 0);
+      g.add(rLeg);
+
+    } else if (preset === 'skirt') {
+      // 裙身（圆台）
+      const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.46, 0.38, 16), mat);
+      skirt.position.set(0, 0.8, 0);
+      g.add(skirt);
+
+      // 腰部
+      const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.24, 0.08, 12), mat);
+      waist.position.set(0, 1.0, 0);
+      g.add(waist);
+    }
+
+    return g;
+  }
+
+  // 鞋子几何体
+  _shoes(preset, mat) {
+    const g = new THREE.Group();
+
+    for (let side of [-1, 1]) {
+      const x = side * 0.12;
+
+      if (preset === 'sneaker') {
+        const sole = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.05, 0.22), mat);
+        sole.position.set(x, 0.045, 0.03);
+        g.add(sole);
+
+        const upper = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.09, 0.18), mat);
+        upper.position.set(x, 0.1, -0.02);
+        g.add(upper);
+
+      } else if (preset === 'boot') {
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.08, 0.2, 8), mat);
+        shaft.position.set(x, 0.16, 0);
+        g.add(shaft);
+
+        const sole = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.05, 0.22), mat);
+        sole.position.set(x, 0.04, 0.03);
+        g.add(sole);
+      }
+    }
+
+    return g;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  第五部分：主程序，自己组装
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+
+// ① 创建自己的 3D 容器
+const scene = new Scene3D(canvas);
+const loader = new ModelLoader();
+
+// ② 加载有骨骼的模型
+const MODEL_URL = './default_anim.glb';
+// 如果在同一目录，改为实际路径
+// const MODEL_URL = '/zhuya-yinyue/assets/3d/models/default_anim.glb';
+
+let animPlayer = null;
+let outfitSys = null;
+let mixer = null;
+let modelData = null;
+
+// 加载模型
+async function init() {
+  const tip = document.getElementById('loading-tip');
+
+  try {
+    modelData = await loader.load(MODEL_URL);
+
+    // ③ 把模型放进场景
+    const { scene: modelScene, animations, bones, skeleton } = modelData;
+
+    // 缩放到合适尺寸（适配 base_female 高度约 1.5 单位）
+    const SCALE = 1.72;
+    const Y_OFF = 0.694 * SCALE; // 脚放到地面
+    modelScene.scale.setScalar(SCALE);
+    modelScene.position.y = Y_OFF;
+    scene.scene.add(modelScene);
+
+    // 隐藏自带网格（我们用程序生成换装）
+    modelScene.traverse(node => {
+      if (node.isSkinnedMesh) {
+        node.visible = false;
+      }
+    });
+
+    // ④ 初始化动画播放器
+    mixer = new THREE.AnimationMixer(modelScene);
+    animPlayer = new AnimationPlayer(mixer);
+    animPlayer.prepareClip(animations);
+
+    // ⑤ 初始化换装系统，绑定到 Root 骨骼
+    outfitSys = new OutfitSystem(scene.scene, bones, 'Root');
+
+    // ⑥ 显示骨骼信息
+    updateSkeletonInfo(bones, animations, modelData.skinnedMeshes);
+
+    tip.classList.add('hidden');
+
+    // ⑦ 加载默认换装
+    await outfitSys.mountPreset('hair', 'long');
+    await outfitSys.mountPreset('top', 'tshirt');
+    await outfitSys.mountPreset('bottom', 'pants');
+    await outfitSys.mountPreset('shoes', 'sneaker');
+
+  } catch (e) {
+    console.error('初始化失败:', e);
+    tip.innerHTML = '加载失败<br><span style="font-size:12px;color:#8b949e">请确认 GLB 文件路径正确</span>';
+  }
+}
+
+function updateSkeletonInfo(bones, animations, skinnedMeshes) {
+  document.getElementById('si-root').textContent = Object.keys(bones)[0] || '—';
+  document.getElementById('si-count').textContent = Object.keys(bones).length;
+  document.getElementById('si-channels').textContent = animations.reduce((s, a) => s + a.channels.length, 0);
+  document.getElementById('si-mesh').textContent = skinnedMeshes.length;
+  if (skinnedMeshes.length > 0) {
+    const verts = skinnedMeshes.reduce((s, m) => s + (m.geometry?.attributes?.position?.count || 0), 0);
+    document.getElementById('si-verts').textContent = verts.toLocaleString();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI 交互（暴露给 HTML）
+// ═══════════════════════════════════════════════════════════
+
+// 动画切换
+window.switchAnim = function(name, btn) {
+  if (animPlayer) animPlayer.crossFadeTo(name);
+  document.querySelectorAll('.anim-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+};
+
+// 换装芯片
+window.toggleChip = async function(btn, category, preset) {
+  if (!outfitSys) return;
+
+  // 取消选中项
+  const row = btn.parentElement;
+  row.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+
+  if (preset === 'none') {
+    outfitSys.unmount(category);
+  } else {
+    btn.classList.add('active');
+    await outfitSys.mountPreset(category, preset);
+  }
+};
+
+// 骨骼信息面板
+let siVisible = false;
+window.toggleSkeletonInfo = function() {
+  siVisible = !siVisible;
+  document.getElementById('skeleton-info').classList.toggle('show', siVisible);
+};
+
+// ═══════════════════════════════════════════════════════════
+//  渲染循环
+// ═══════════════════════════════════════════════════════════
+const clock = new THREE.Clock();
+let frameCount = 0, fpsTime = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+
+  // 更新动画
+  if (mixer) mixer.update(dt);
+
+  // FPS 计数
+  frameCount++;
+  fpsTime += dt;
+  if (fpsTime >= 1.0) {
+    document.getElementById('fps-counter').textContent = `FPS: ${frameCount}`;
+    frameCount = 0; fpsTime = 0;
+  }
+
+  // 渲染
+  scene.render();
+}
+animate();
+
+// ═══════════════════════════════════════════════════════════
+//  启动
+// ═══════════════════════════════════════════════════════════
+init().catch(console.error);
+</script>
+</body>
+</html>
