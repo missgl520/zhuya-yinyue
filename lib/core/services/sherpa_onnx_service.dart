@@ -8,56 +8,48 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:ffi/ffi.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+import 'package:sherpa_onnx/sherpa_onnx.dart' as sp;
 
 /// ASR 结果回调
 typedef AsrResultCallback = void Function(String text, bool isFinal);
 
 /// Sherpa-ONNX ASR 配置
 class SherpaAsrConfig {
-  /// 模型文件路径 (.onnx)
   final String modelPath;
-  /// 词表文件路径 (tokens.txt)
   final String tokensPath;
-  /// 采样率（默认16000）
   final int sampleRate;
-  /// 是否debug模式
   final bool debug;
+  final int? numThreads;
 
   const SherpaAsrConfig({
     required this.modelPath,
     required this.tokensPath,
     this.sampleRate = 16000,
     this.debug = false,
+    this.numThreads,
   });
 }
 
 /// Sherpa-ONNX TTS 配置
 class SherpaTtsConfig {
-  /// 模型文件路径 (.onnx)
   final String modelPath;
-  /// 词表文件路径 (tokens.txt)
   final String tokensPath;
-  /// 音素词典 (lexicon.txt，可选)
   final String? lexiconPath;
-  /// 输出采样率（默认24000）
+  final String? dataDir;
   final int sampleRate;
-  /// 语速（1.0=正常）
   final double speed;
-  /// 音高（1.0=正常）
   final double pitch;
-  /// 音量（1.0=正常）
   final double volume;
-  /// 说话人ID（多音色模型时指定）
   final int speakerId;
 
   const SherpaTtsConfig({
     required this.modelPath,
     required this.tokensPath,
     this.lexiconPath,
+    this.dataDir,
     this.sampleRate = 24000,
     this.speed = 1.0,
     this.pitch = 1.0,
@@ -75,73 +67,130 @@ class SherpaOnnxService {
   bool _initialized = false;
   bool get isInitialized => _initialized;
 
-  /// 模型管理器（延迟加载避免循环依赖）
-  dynamic _modelManager;
+  sp.OfflineRecognizer? _offlineRecognizer;
+  sp.OnlineRecognizer? _onlineRecognizer;
+  sp.Synthesizer? _synthesizer;
+
+  SherpaAsrConfig? _lastAsrConfig;
+  SherpaTtsConfig? _lastTtsConfig;
 
   // ════════════════════════════════════════════════════════
   // 初始化
   // ════════════════════════════════════════════════════════
 
   /// 初始化服务
+  ///
+  /// [modelsDir] 模型根目录，含：
+  ///   asr/model.onnx + asr/tokens.txt
+  ///   tts/model.onnx + tts/tokens.txt + tts/lexicon.txt（可选）
   Future<void> initialize({String? modelsDir}) async {
     if (_initialized) return;
-
-    // 获取模型路径（从 ModelManager）
-    // ignore: avoid_dynamic_calls
-    _modelManager ??= _getModelManager();
-
-    // 模型文件已在 ModelManager.initializeModels() 时准备好
-    // 这里只做内存初始化
     _initialized = true;
+
+    if (modelsDir != null) {
+      await _preloadAll(modelsDir);
+    }
   }
 
-  dynamic _getModelManager() {
-    // 懒加载 ModelManager（避免循环 import）
-    // 实际使用时通过 sherpa_onnx_provider 注入
-    return null;
+  /// 预加载全部模型（减少首次推理延迟）
+  Future<void> _preloadAll(String modelsDir) async {
+    final asrModel  = p.join(modelsDir, 'asr', 'model.onnx');
+    final asrTokens = p.join(modelsDir, 'asr', 'tokens.txt');
+    final ttsModel  = p.join(modelsDir, 'tts', 'model.onnx');
+    final ttsTokens = p.join(modelsDir, 'tts', 'tokens.txt');
+    final lexicon   = p.join(modelsDir, 'tts', 'lexicon.txt');
+
+    if (await File(asrModel).exists()) {
+      await _initOfflineAsr(SherpaAsrConfig(
+        modelPath: asrModel,
+        tokensPath: asrTokens,
+      ));
+    }
+
+    if (await File(ttsModel).exists()) {
+      await _initTts(SherpaTtsConfig(
+        modelPath: ttsModel,
+        tokensPath: ttsTokens,
+        lexiconPath: await File(lexicon).exists() ? lexicon : null,
+      ));
+    }
   }
 
   // ════════════════════════════════════════════════════════
   // ASR 语音识别
   // ════════════════════════════════════════════════════════
 
+  Future<void> _initOfflineAsr(SherpaAsrConfig config) async {
+    try {
+      final onlineModel = sp.OnlineModelConfig();
+      onlineModel.paraformer.set(config.modelPath, config.tokensPath);
+
+      final featConfig = sp.FeatureConfig()
+        ..sampleRate = config.sampleRate
+        ..featureDim = 80;
+
+      final cfg = sp.RecognizerConfig()
+        ..onlineModelConfig = onlineModel
+        ..featConfig = featConfig
+        ..enableEndpoint = true
+        ..rule1MinTrailingSilence = 2.4
+        ..rule2MinTrailingSilence = 1.2
+        ..rule3MinUtteranceLength = 300.0;
+
+      if (config.numThreads != null) {
+        cfg.modelConfig.numThreads = config.numThreads!;
+      }
+
+      _lastAsrConfig = config;
+      _offlineRecognizer = sp.OfflineRecognizer(cfg);
+    } catch (e) {
+      debugPrint('[SherpaOnnx] ASR init failed: $e');
+    }
+  }
+
   /// 识别音频文件 → 文字
-  ///
-  /// [audioPath] 音频文件路径（支持 wav/pcm/s16le）
   Future<String> recognizeFile(String audioPath, SherpaAsrConfig config) async {
     _ensureInitialized();
 
-    try {
-      // ── sherpa_onnx 离线识别 ──
-      // final recognizer = OfflineRecognizer(
-      //   model: config.modelPath,
-      //   tokens: config.tokensPath,
-      //   sampleRate: config.sampleRate,
-      // );
-      // final stream = recognizer.createStream();
-      // await stream.decodeFile(audioPath);
-      // final text = stream.result.text;
-      // recognizer.free();
-      // return text;
+    final file = File(audioPath);
+    if (!await file.exists()) {
+      throw Exception('音频文件不存在: $audioPath');
+    }
 
-      // TODO: 集成 sherpa_onnx 实际 API
-      // 占位返回，实际替换为上面代码
-      return _placeholderRecognize(audioPath, config);
-    } catch (e) {
-      throw Exception('ASR识别失败: $e');
+    _offlineRecognizer ?? await _initOfflineAsr(config);
+    if (_offlineRecognizer == null) {
+      throw Exception('ASR 模型未初始化');
+    }
+
+    final stream = _offlineRecognizer!.createStream();
+    try {
+      await stream.decodeFile(audioPath);
+      return stream.result.text.trim();
+    } finally {
+      stream.dispose();
+    }
+  }
+
+  /// 识别 WAV/PCM 字节数据 → 文字
+  Future<String> recognizeBytes(Uint8List bytes, SherpaAsrConfig config) async {
+    _ensureInitialized();
+
+    _offlineRecognizer ?? await _initOfflineAsr(config);
+    if (_offlineRecognizer == null) {
+      throw Exception('ASR 模型未初始化');
+    }
+
+    final stream = _offlineRecognizer!.createStream();
+    try {
+      stream.acceptWaveform(bytes, config.sampleRate);
+      _offlineRecognizer!.decode(stream);
+      return stream.result.text.trim();
+    } finally {
+      stream.dispose();
     }
   }
 
   /// 流式识别（麦克风实时输入）
-  ///
-  /// ```dart
-  /// final recognizer = service.startListening(config);
-  /// recognizer.onPartialResult = (text) => print('中间: $text');
-  /// recognizer.onResult = (text) => print('最终: $text');
-  /// recognizer.start();  // 开始监听麦克风
-  /// // ...
-  /// recognizer.stop();   // 停止
-  /// ```
   SherpaAsrRecognizer startListening(SherpaAsrConfig config) {
     _ensureInitialized();
     return SherpaAsrRecognizer._(config, this);
@@ -151,90 +200,119 @@ class SherpaOnnxService {
   // TTS 语音合成
   // ════════════════════════════════════════════════════════
 
+  Future<void> _initTts(SherpaTtsConfig config) async {
+    try {
+      final vits = sp.VitsModelConfig()
+        ..model = config.modelPath
+        ..tokens = config.tokensPath
+        ..lexicon = config.lexiconPath
+        ..dataDir = config.dataDir;
+
+      final ttsCfg = sp.SynthesizerConfig()
+        ..modelConfig = vits
+        ..sampleRate = config.sampleRate
+        ..speed = config.speed
+        ..pitch = config.pitch
+        ..volume = config.volume;
+
+      _lastTtsConfig = config;
+      _synthesizer = sp.Synthesizer(ttsCfg);
+    } catch (e) {
+      debugPrint('[SherpaOnnx] TTS init failed: $e');
+    }
+  }
+
   /// 合成文字 → WAV 文件
-  ///
-  /// [text] 要合成的文本（中文）
-  /// [config] TTS 配置
-  /// [outputPath] 输出路径（.wav）
-  Future<String?> synthesize(String text, SherpaTtsConfig config, String outputPath) async {
+  Future<String?> synthesize(
+    String text,
+    SherpaTtsConfig config,
+    String outputPath,
+  ) async {
     _ensureInitialized();
 
     if (text.trim().isEmpty) return null;
 
-    try {
-      // ── sherpa_onnx TTS ──
-      // final tts = Synthesizer(
-      //   model: config.modelPath,
-      //   tokens: config.tokensPath,
-      //   lexicon: config.lexiconPath,
-      //   sampleRate: config.sampleRate,
-      // );
-      // final audio = tts.generate(
-      //   text,
-      //   speed: config.speed,
-      //   pitch: config.pitch,
-      //   volume: config.volume,
-      //   sid: config.speakerId,
-      // );
-      // await File(outputPath).writeAsBytes(audio);
-      // tts.free();
-      // return outputPath;
-
-      // TODO: 集成 sherpa_onnx 实际 API
-      // 占位返回，实际替换为上面代码
-      return _placeholderSynthesize(text, config, outputPath);
-    } catch (e) {
-      throw Exception('TTS合成失败: $e');
+    _synthesizer ?? await _initTts(config);
+    if (_synthesizer == null) {
+      throw Exception('TTS 模型未初始化');
     }
+
+    final audio = _synthesizer!.generate(
+      text,
+      sid: config.speakerId,
+      speed: config.speed,
+    );
+
+    final outFile = File(outputPath);
+    await outFile.parent.create(recursive: true);
+    await outFile.writeAsBytes(audio);
+    return outputPath;
   }
 
-  /// 合成文字 → WAV 字节数据（不写文件）
-  Future<Uint8List?> synthesizeToBytes(String text, SherpaTtsConfig config) async {
+  /// 合成文字 → WAV 字节数据
+  Future<Uint8List?> synthesizeToBytes(
+    String text,
+    SherpaTtsConfig config,
+  ) async {
     final tempDir = await getTemporaryDirectory();
-    final tempPath = p.join(tempDir.path, 'tts_temp_${DateTime.now().millisecondsSinceEpoch}.wav');
+    final path = p.join(
+      tempDir.path,
+      'tts_${DateTime.now().millisecondsSinceEpoch}.wav',
+    );
 
-    final result = await synthesize(text, config, tempPath);
-    if (result != null) {
-      final file = File(result);
-      if (await file.exists()) {
-        final bytes = await file.readAsBytes();
-        await file.delete(); // 清理临时文件
-        return bytes;
-      }
+    final result = await synthesize(text, config, path);
+    if (result != null && await File(result).exists()) {
+      final bytes = await File(result).readAsBytes();
+      await File(result).delete();
+      return bytes;
     }
     return null;
   }
 
   // ════════════════════════════════════════════════════════
-  // 内部方法
+  // 资源清理
   // ════════════════════════════════════════════════════════
+
+  void dispose() {
+    _offlineRecognizer?.dispose();
+    _onlineRecognizer?.dispose();
+    _synthesizer?.dispose();
+    _offlineRecognizer = null;
+    _onlineRecognizer = null;
+    _synthesizer = null;
+    _initialized = false;
+  }
 
   void _ensureInitialized() {
     if (!_initialized) {
       throw Exception('SherpaOnnxService 未初始化，请先调用 initialize()');
     }
   }
-
-  // ── TODO 占位实现（集成时替换为真实 sherpa_onnx API）───
-
-  Future<String> _placeholderRecognize(String audioPath, SherpaAsrConfig config) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return '（ASR 识别结果）';
-  }
-
-  Future<String?> _placeholderSynthesize(String text, SherpaTtsConfig config, String outputPath) async {
-    await Future.delayed(const Duration(milliseconds: 100));
-    return null;
-  }
 }
 
-/// ASR 流式识别器
+// ════════════════════════════════════════════════════════════════════════
+// ASR 流式识别器（麦克风实时输入）
+// ════════════════════════════════════════════════════════════════════════
+
+/// Sherpa-ONNX 流式识别器
+///
+/// 使用流程：
+/// ```dart
+/// final recognizer = service.startListening(config);
+/// recognizer.onPartialResult = (text) => print('中间: $text');
+/// recognizer.onResult = (text) => print('最终: $text');
+/// recognizer.start();   // 开始监听麦克风
+/// // ...
+/// recognizer.stop();    // 停止
+/// ```
 class SherpaAsrRecognizer {
   final SherpaAsrConfig config;
   final SherpaOnnxService _service;
-  bool _isRunning = false;
 
   SherpaAsrRecognizer._(this.config, this._service);
+
+  bool _isRunning = false;
+  bool get isRunning => _isRunning;
 
   /// 最终结果回调
   AsrResultCallback? onResult;
@@ -242,72 +320,129 @@ class SherpaAsrRecognizer {
   /// 中间结果回调（实时识别文字）
   AsrResultCallback? onPartialResult;
 
-  bool get isRunning => _isRunning;
+  sp.OnlineRecognizer? _recognizer;
+  Timer? _pollTimer;
+  String _lastText = '';
+  int _silenceCount = 0;
+  static const int _silenceThreshold = 8; // 连续静音帧数阈值
 
   /// 开始监听麦克风
   ///
-  /// 流程：
-  /// 1. 启动 AudioRecorder（16kHz mono s16le PCM）
-  /// 2. 每 0.5s 将 PCM 数据推送给 ASR 推理
-  /// 3. VAD 检测到静音（N 个连续短音频帧）→ 返回最终结果
+  /// FIXME: 当前使用占位轮询，需接入真实麦克风录音。
+  /// 推荐使用 `record` 包：
+  /// ```dart
+  /// import 'package:record/record.dart';
+  /// final recorder = AudioRecorder();
+  /// await recorder.start(const RecordConfig(
+  ///   encoder: AudioEncoder.pcm16bits,
+  ///   sampleRate: 16000,
+  ///   numChannels: 1,
+  /// ));
+  /// // 定时读取:
+  /// final pcm = await recorder.read();
+  /// if (pcm.isNotEmpty) recognizer.pushAudio(pcm);
+  /// ```
   void start() {
     if (_isRunning) return;
     _isRunning = true;
+    _silenceCount = 0;
+    _lastText = '';
 
-    // TODO: 集成实际麦克风录音 + ASR 流式推理
-    //
-    // 实现思路（参考 sherpa-onnx 官方示例）：
-    // ```dart
-    // final recorder = AudioRecorder();
-    // await recorder.start(RecorderConfig(
-    //   encoder: AudioEncoder.pcm16bits,
-    //   sampleRate: 16000,
-    //   numChannels: 1,
-    // ));
-    //
-    // // 创建在线识别器
-    // final recognizer = OnlineRecognizer(
-    //   model: config.modelPath,
-    //   tokens: config.tokensPath,
-    //   sampleRate: 16000,
-    // );
-    //
-    // // 定时读取 PCM 数据
-    // Timer.periodic(Duration(milliseconds: 100), (timer) async {
-    //   if (!_isRunning) { timer.cancel(); return; }
-    //   final samples = await recorder.read();
-    //   if (samples.isEmpty) return;
-    //
-    //   // 推送给 ASR
-    //   recognizer.acceptWaveform(samples);
-    //
-    //   // 获取中间结果
-    //   final partial = recognizer.text;
-    //   if (partial.isNotEmpty) onPartialResult?.call(partial, false);
-    //
-    //   // 检查是否结束（VAD）
-    //   if (recognizer.isEndpoint) {
-    //     final text = recognizer.text;
-    //     onResult?.call(text, true);
-    //     recognizer.reset(); // 重置继续听
-    //   }
-    // });
-    // ```
+    try {
+      final onlineModel = sp.OnlineModelConfig();
+      onlineModel.paraformer.set(config.modelPath, config.tokensPath);
+
+      final featConfig = sp.FeatureConfig()
+        ..sampleRate = config.sampleRate
+        ..featureDim = 80;
+
+      final cfg = sp.RecognizerConfig()
+        ..onlineModelConfig = onlineModel
+        ..featConfig = featConfig
+        ..enableEndpoint = true
+        ..rule1MinTrailingSilence = 2.4
+        ..rule2MinTrailingSilence = 1.2
+        ..rule3MinUtteranceLength = 300.0;
+
+      if (config.numThreads != null) {
+        cfg.modelConfig.numThreads = config.numThreads!;
+      }
+
+      _recognizer = sp.OnlineRecognizer(cfg);
+
+      // 定时轮询麦克风（每 100ms）
+      // TODO: 替换为真实麦克风录音（见上方 FIXME）
+      _pollTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        // 这里调用 pushAudio(yourRealMicData) 即可
+      });
+    } catch (e) {
+      debugPrint('[SherpaAsr] 启动失败: $e');
+      stop();
+    }
+  }
+
+  /// 推送原始 PCM 数据（16kHz 16bit mono）
+  ///
+  /// 外部录音器拿到 PCM 后调用此方法即可。
+  void pushAudio(List<int> pcm16Data) {
+    if (!_isRunning || _recognizer == null || pcm16Data.isEmpty) return;
+
+    try {
+      _recognizer!.acceptWaveform(pcm16Data, config.sampleRate);
+
+      // 中间结果
+      final partial = _recognizer!.text;
+      if (partial.isNotEmpty && partial != _lastText) {
+        _lastText = partial;
+        _silenceCount = 0;
+        onPartialResult?.call(partial, false);
+      } else if (partial.isEmpty) {
+        _silenceCount++;
+        if (_silenceCount >= _silenceThreshold && _lastText.isNotEmpty) {
+          onResult?.call(_lastText, true);
+          _lastText = '';
+          _silenceCount = 0;
+          _recognizer!.reset();
+        }
+      }
+
+      // VAD 端点检测 → 返回最终结果
+      if (_recognizer!.isEndpoint) {
+        final text = _recognizer!.text.trim();
+        if (text.isNotEmpty) {
+          onResult?.call(text, true);
+        }
+        _recognizer!.reset();
+        _lastText = '';
+        _silenceCount = 0;
+      }
+    } catch (e) {
+      debugPrint('[SherpaAsr] 推理错误: $e');
+    }
+  }
+
+  /// 推送 Float32 PCM 数据
+  void pushFloat32Audio(List<double> float32Data) {
+    final pcm16 = float32Data
+        .map((v) => (v * 32767).clamp(-32768.0, 32767.0).toInt())
+        .toList();
+    final bytes = ByteData(pcm16.length * 2);
+    for (int i = 0; i < pcm16.length; i++) {
+      bytes.setInt16(i * 2, pcm16[i], Endian.little);
+    }
+    pushAudio(bytes.buffer.asUint8List().toList());
   }
 
   /// 停止监听
   void stop() {
     _isRunning = false;
-    // TODO: 停止录音，释放资源
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    _recognizer?.dispose();
+    _recognizer = null;
+    _lastText = '';
+    _silenceCount = 0;
   }
 
-  /// 推送原始 PCM 数据（外部录音时用）
-  void pushAudio(List<int> pcm16Data) {
-    if (!_isRunning) return;
-    // TODO: 将 PCM 16bit 音频数据送给 ASR 流式推理
-  }
-
-  void dispose() {
-    stop();
-  }
+  void dispose() => stop();
 }
