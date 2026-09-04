@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D 角色预览</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a14; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; font-family: system-ui, sans-serif; }
+    
+    h1 { color: #c8d8f0; margin-bottom: 20px; font-size: 18px; letter-spacing: 2px; }
+    
+    .viewer-row { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; }
+    
+    .viewer-box {
+      display: flex; flex-direction: column; align-items: center; gap: 12px;
+    }
+    
+    .viewer-label {
+      color: #8090b0; font-size: 13px; letter-spacing: 1px;
+    }
+    
+    canvas {
+      border: 1px solid #1a2040;
+      border-radius: 12px;
+      background: #0d0d20;
+      width: 360px; height: 480px;
+      display: block;
+    }
+    
+    .controls {
+      margin-top: 16px; display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+    }
+    
+    button {
+      background: #1a2040; color: #8090c0;
+      border: 1px solid #2a3060;
+      padding: 8px 20px; border-radius: 8px; cursor: pointer;
+      font-size: 13px; transition: all 0.2s;
+    }
+    button:hover { background: #2a3870; color: #c0d0ff; border-color: #4a5a90; }
+    button.active { background: #2a3a70; color: #c0d0ff; border-color: #6a7aff; }
+  </style>
+</head>
+<body>
+  <h1>2D → 3D 生成结果预览</h1>
+  
+  <div class="viewer-row">
+    <div class="viewer-box">
+      <canvas id="v1"></canvas>
+      <span class="viewer-label">女性角色 — 银色星光装</span>
+    </div>
+    <div class="viewer-box">
+      <canvas id="v2"></canvas>
+      <span class="viewer-label">男性角色 — 星尘披风</span>
+    </div>
+  </div>
+  
+  <div class="controls">
+    <button onclick="toggleWireframe()">线框模式</button>
+    <button onclick="toggleSpin()">自动旋转</button>
+    <button onclick="changeBg(0x0a0a14)">暗夜</button>
+    <button onclick="changeBg(0x1a0a2a)">紫调</button>
+    <button onclick="changeBg(0x0a1a0a)">绿调</button>
+    <button onclick="toggleBloom()">Bloom发光</button>
+  </div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+// ── 两个 canvas ──
+const canvas1 = document.getElementById('v1');
+const canvas2 = document.getElementById('v2');
+
+const models = [
+  { canvas: canvas1, path: 'models/avatar_female_v2.glb', label: 'female' },
+  { canvas: canvas2, path: 'models/avatar_male_v2.glb',   label: 'male' },
+];
+
+let spinEnabled = false;
+let wireframeMode = false;
+let bloomEnabled = true;
+
+function createRenderer(canvas) {
+  const r = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  r.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  r.outputColorSpace = THREE.SRGBColorSpace;
+  r.toneMapping = THREE.ACESFilmicToneMapping;
+  r.toneMappingExposure = 1.2;
+  return r;
+}
+
+function createScene(bgColor = 0x0a0a14) {
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(bgColor);
+  
+  // 柔和环境光
+  scene.add(new THREE.AmbientLight(0xfff8f0, 0.5));
+  const key = new THREE.DirectionalLight(0xfff5e0, 2.0);
+  key.position.set(3, 7, 4);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0xc8e4ff, 0.8);
+  fill.position.set(-4, 2, -2);
+  scene.add(fill);
+  const rim = new THREE.DirectionalLight(0xffeedd, 0.5);
+  rim.position.set(0, 2, -5);
+  scene.add(rim);
+  
+  // 地面光圈
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(1.2, 64),
+    new THREE.MeshBasicMaterial({ color: 0x2a3a6a, transparent: true, opacity: 0.15 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = 0;
+  scene.add(ground);
+  
+  return scene;
+}
+
+function createCamera(aspect) {
+  const cam = new THREE.PerspectiveCamera(40, aspect, 0.05, 100);
+  cam.position.set(0, 1.5, 4.5);
+  cam.lookAt(0, 1.2, 0);
+  return cam;
+}
+
+function setupPostprocessing(renderer, scene, camera) {
+  const composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  
+  const bloom = new UnrealBloomPass(
+    new THREE.Vector2(renderer.domElement.width, renderer.domElement.height),
+    0.35, 0.5, 0.80
+  );
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
+  
+  return { composer, bloom };
+}
+
+// ── 初始化两个 viewer ──
+const viewers = models.map(({ canvas, path }) => {
+  const renderer = createRenderer(canvas);
+  renderer.setSize(360, 480, false);
+  
+  const scene = createScene();
+  const camera = createCamera(360 / 480);
+  
+  const controls = new OrbitControls(camera, canvas);
+  controls.target.set(0, 1.2, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+  controls.minDistance = 1.5;
+  controls.maxDistance = 8;
+  controls.maxPolarAngle = Math.PI * 0.9;
+  controls.update();
+  
+  const { composer, bloom } = setupPostprocessing(renderer, scene, camera);
+  
+  // 加载模型
+  const loader = new GLTFLoader();
+  let model = null;
+  
+  loader.load(path, gltf => {
+    model = gltf.scene;
+    model.position.y = 0;
+    model.traverse(c => {
+      if (c.isMesh) {
+        c.castShadow = true;
+        c.receiveShadow = true;
+      }
+    });
+    scene.add(model);
+    
+    // 计算包围盒居中
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.x -= center.x;
+    model.position.z -= center.z;
+    controls.target.set(0, center.y, 0);
+  }, undefined, err => {
+    console.warn('Load failed:', path, err);
+  });
+  
+  return { renderer, scene, camera, controls, composer, model, canvas };
+});
+
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  
+  viewers.forEach(v => {
+    if (spinEnabled && v.model) {
+      v.model.rotation.y += dt * 0.5;
+    }
+    v.controls.update();
+    v.composer.render();
+  });
+}
+animate();
+
+// ── 控制按钮 ──
+window.toggleWireframe = function() {
+  wireframeMode = !wireframeMode;
+  viewers.forEach(v => {
+    if (!v.model) return;
+    v.model.traverse(c => {
+      if (c.isMesh && c.material) {
+        c.material.wireframe = wireframeMode;
+      }
+    });
+  });
+  document.querySelectorAll('button')[0].classList.toggle('active', wireframeMode);
+};
+
+window.toggleSpin = function() {
+  spinEnabled = !spinEnabled;
+  document.querySelectorAll('button')[1].classList.toggle('active', spinEnabled);
+};
+
+window.changeBg = function(color) {
+  viewers.forEach(v => {
+    v.scene.background = new THREE.Color(color);
+  });
+};
+
+window.toggleBloom = function() {
+  bloomEnabled = !bloomEnabled;
+  viewers.forEach(v => {
+    v.composer.passes[1].strength = bloomEnabled ? 0.35 : 0;
+  });
+  document.querySelectorAll('button')[5].classList.toggle('active', bloomEnabled);
+};
+</script>
+</body>
+</html>
