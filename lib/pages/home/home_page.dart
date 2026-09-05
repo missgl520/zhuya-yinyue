@@ -25,11 +25,11 @@ List<HomeSlot> _buildDefaultSlots() {
     // 顶部一行 5 格
     const HomeSlot(index: 0, type: SlotType.about),
     HomeSlot.empty(1),
-    const HomeSlot(index: 2, type: SlotType.musicDog),
+    HomeSlot.empty(2),
     HomeSlot.empty(3),
     const HomeSlot(index: 4, type: SlotType.settings),
     // 中间 1 格（中央大格）
-    HomeSlot.empty(5),
+    const HomeSlot(index: 5, type: SlotType.musicDog),
     // 底部一行 3 格
     const HomeSlot(index: 6, type: SlotType.gallery),
     const HomeSlot(index: 7, type: SlotType.voiceCall),
