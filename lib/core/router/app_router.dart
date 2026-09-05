@@ -12,10 +12,10 @@ import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
 import '../../pages/settings/settings_page.dart';
-import '../../pages/avatar/avatar_fullscreen_page.dart';
-import '../../pages/avatar/avatar_customize_page.dart';
 import '../../pages/pet/pet_library_page.dart';
 import '../../pages/music/music_page.dart';
+import '../../pages/music_dog/music_dog_page.dart';
+import '../../pages/avatar/avatar_customize_page.dart';
 import '../../widgets/consent_gate.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -91,12 +91,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SettingsPage(),
       ),
 
-      // 3D 音乐狗全屏页
-      GoRoute(
-        path: '/avatar',
-        name: 'avatar',
-        builder: (context, state) => const AvatarFullscreenPage(),
-      ),
+
 
       // 3D 音乐狗换装定制页
       GoRoute(
@@ -106,6 +101,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
 
       // 音乐库（歌词 + 歌曲）
+      // 音乐狗页（3D狗+播放+图库合并）
+      GoRoute(
+        path: '/music-dog',
+        name: 'music-dog',
+        builder: (context, state) => const AvatarCustomizePage(),
+      ),
       GoRoute(
         path: '/pet/library',
         name: 'pet-library',

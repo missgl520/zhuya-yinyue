@@ -134,7 +134,7 @@ class HomeSlot {
       case SlotType.about:
         return '/info';
       case SlotType.musicDog:
-        return '/avatar';
+        return '/music-dog';
       case SlotType.settings:
         return '/settings';
       case SlotType.gallery:
