@@ -272,7 +272,7 @@ class _ChatPageState extends ConsumerState<ChatPage>
           ),
           const SizedBox(width: 12),
           GestureDetector(
-            onTap: () => context.push('/pet'),
+            // pet 养成页已移除
             child: const ChatTopIcon(icon: Icons.pets),
           ),
           const SizedBox(width: 12),

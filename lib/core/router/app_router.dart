@@ -14,19 +14,15 @@ import '../../pages/settings/info_modules_page.dart';
 import '../../pages/settings/settings_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/avatar/avatar_customize_page.dart';
-import '../../pages/pet/pet_page.dart';
-import '../../pages/pet/pet_fullscreen_page.dart';
 import '../../pages/pet/pet_library_page.dart';
 import '../../pages/music/music_page.dart';
 import '../../widgets/consent_gate.dart';
 
-/// GoRouter 实例 Provider
-/// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     routes: [
-      // 启动页：/ → SplashPage → 2.5s 后跳 /home
+      // 启动页
       GoRoute(
         path: '/',
         name: 'splash',
@@ -78,7 +74,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // 信息模块页（版本介绍 / 个人信息收集 / 第三方共享）
+      // 信息模块页
       GoRoute(
         path: '/info',
         name: 'info',
@@ -107,20 +103,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/avatar/customize',
         name: 'avatar-customize',
         builder: (context, state) => const AvatarCustomizePage(),
-      ),
-
-      // 音乐狗主页
-      GoRoute(
-        path: '/pet',
-        name: 'pet',
-        builder: (context, state) => const PetPage(),
-      ),
-
-      // 音乐狗全屏页
-      GoRoute(
-        path: '/pet/full',
-        name: 'pet-full',
-        builder: (context, state) => const PetFullscreenPage(),
       ),
 
       // 音乐库（歌词 + 歌曲）
