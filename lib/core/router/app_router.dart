@@ -21,6 +21,7 @@ import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/avatar/avatar_customize_page.dart';
 
 import '../../pages/profile/profile_page.dart';
+import '../../widgets/consent_gate.dart';
 // Phase 1 新增页面
 import '../../pages/pet/pet_page.dart';
 import '../../pages/pet/pet_fullscreen_page.dart';
@@ -40,12 +41,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SplashPage(),
       ),
 
-      // 对话页：自定义过渡动画（淡入 + 微微上滑）
+      // 对话页：ConsentGate 检查隐私协议，ChatPage 带淡入+上滑过渡
       GoRoute(
         path: '/chat',
         name: 'chat',
         pageBuilder: (context, state) => CustomTransitionPage(
-          child: const ChatPage(),
+          child: const ConsentGate(child: ChatPage()),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
             return FadeTransition(
               opacity: animation,
