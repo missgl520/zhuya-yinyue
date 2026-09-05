@@ -1,34 +1,24 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 路由配置（GoRouter）
-//
-// 声明式路由：路径 → 页面
-//
-// 路由列表（对齐 zhuyapp-design-2.0.md）：
-//   /        → 启动页（SplashPage，2.5s 后自动跳转 /chat）
-//   /chat    → 对话页（ChatPage），带淡入+上滑过渡动画
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../pages/splash/splash_page.dart';
+import '../../pages/home/home_page.dart';
 import '../../pages/chat/chat_page.dart';
-import '../../pages/settings/memory_history_page.dart';
 import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
 import '../../pages/settings/settings_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/avatar/avatar_customize_page.dart';
-
-import '../../pages/profile/profile_page.dart';
-import '../../widgets/consent_gate.dart';
-import '../../pages/home/home_page.dart';
-// Phase 1 新增页面
 import '../../pages/pet/pet_page.dart';
 import '../../pages/pet/pet_fullscreen_page.dart';
 import '../../pages/pet/pet_library_page.dart';
 import '../../pages/music/music_page.dart';
+import '../../widgets/consent_gate.dart';
 
 /// GoRouter 实例 Provider
 /// main.dart 用 ref.watch(routerProvider) 注入到 MaterialApp.router
@@ -36,7 +26,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     routes: [
-      // 启动页：/ → SplashPage → 2.5s 后 context.go('/chat')
+      // 启动页：/ → SplashPage → 2.5s 后跳 /home
       GoRoute(
         path: '/',
         name: 'splash',
@@ -50,7 +40,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const HomePage(),
       ),
 
-      // 对话页：ConsentGate 检查隐私协议，ChatPage 带淡入+上滑过渡
+      // 对话页
       GoRoute(
         path: '/chat',
         name: 'chat',
@@ -60,32 +50,25 @@ final routerProvider = Provider<GoRouter>((ref) {
             return FadeTransition(
               opacity: animation,
               child: SlideTransition(
-                position:
-                    Tween<Offset>(
-                      begin: const Offset(0, 0.1),
-                      end: Offset.zero,
-                    ).animate(
-                      CurvedAnimation(parent: animation, curve: Curves.easeOut),
-                    ),
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.1),
+                  end: Offset.zero,
+                ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOut)),
                 child: child,
               ),
             );
           },
         ),
       ),
-      // 实时语音通话页（全屏覆盖）
+
+      // 语音通话页
       GoRoute(
         path: '/voice-call',
         name: 'voice-call',
         builder: (context, state) => const VoiceCallPage(),
       ),
-      // 记忆历史页
-      GoRoute(
-        path: '/memory-history',
-        name: 'memory-history',
-        builder: (context, state) => const MemoryHistoryPage(),
-      ),
-      // 法律文档页（隐私政策 / 用户协议）
+
+      // 法律文档页
       GoRoute(
         path: '/legal',
         name: 'legal',
@@ -94,7 +77,8 @@ final routerProvider = Provider<GoRouter>((ref) {
           return LegalPage(type: type);
         },
       ),
-      // 信息模块页（个人信息收集 / 第三方共享 / 版本介绍）
+
+      // 信息模块页（版本介绍 / 个人信息收集 / 第三方共享）
       GoRoute(
         path: '/info',
         name: 'info',
@@ -103,52 +87,50 @@ final routerProvider = Provider<GoRouter>((ref) {
           return InfoModulesPage(type: type);
         },
       ),
-      // 3D 角色独立全屏页（二级程序：把「狗子」放在独立全屏查看）
+
+      // 设置页
+      GoRoute(
+        path: '/settings',
+        name: 'settings',
+        builder: (context, state) => const SettingsPage(),
+      ),
+
+      // 3D 音乐狗全屏页
       GoRoute(
         path: '/avatar',
         name: 'avatar',
         builder: (context, state) => const AvatarFullscreenPage(),
       ),
 
-      // 角色换装定制页
+      // 3D 音乐狗换装定制页
       GoRoute(
         path: '/avatar/customize',
         name: 'avatar-customize',
         builder: (context, state) => const AvatarCustomizePage(),
       ),
 
-      GoRoute(
-        path: '/profile',
-        name: 'profile',
-        builder: (context, state) => const ProfilePage(),
-      ),
-
-      // ════════════════════════════════════════════════════
-      // Phase 1 新增：音乐狗子 × 音乐创作
-      // ════════════════════════════════════════════════════
-
-      // 音乐狗子主页（状态展示 + 交互按钮 + 音乐创作入口）
+      // 音乐狗主页
       GoRoute(
         path: '/pet',
         name: 'pet',
         builder: (context, state) => const PetPage(),
       ),
 
-      // 音乐狗子全屏页（独立全屏查看角色 + 详细状态）
+      // 音乐狗全屏页
       GoRoute(
         path: '/pet/full',
         name: 'pet-full',
         builder: (context, state) => const PetFullscreenPage(),
       ),
 
-      // 音乐库（歌词库 + 歌曲库 + 生成历史）
+      // 音乐库（歌词 + 歌曲）
       GoRoute(
         path: '/pet/library',
         name: 'pet-library',
         builder: (context, state) => const PetLibraryPage(),
       ),
 
-      // 音乐页（本地音乐 + 搜索播放）
+      // 音乐播放页
       GoRoute(
         path: '/music',
         name: 'music',
