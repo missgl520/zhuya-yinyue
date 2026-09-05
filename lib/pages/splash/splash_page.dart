@@ -1,10 +1,9 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 启动页（Splash Page）
 //
-// 竹子 Logo + 品牌名 + 呼吸浮动 / 缩放 / 淡入动效
-// 简约少年系：白底 + 嫩绿点缀，去掉多余的飘落装饰
-// 同意门：全屏品牌卡片（隐私 / 协议两栏 + 主按钮），不挡视觉
-// 动画结束或点击屏幕后自动跳转到对话页 /chat
+// 全屏展示 assets/logo/splash_cover.png
+// 首次启动弹隐私政策/用户协议同意卡
+// 动画结束或点击屏幕后自动跳转到首页 /home
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import 'package:flutter/material.dart';
@@ -24,19 +23,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
-  // 人物上下浮动动画控制器（呼吸感）
-  late AnimationController _floatController;
-  late Animation<double> _floatAnim;
-
-  // Logo 整体缩放动画控制器（弹性放大）
-  late AnimationController _scaleController;
-  late Animation<double> _scaleAnim;
-
-  // 整体淡入动画控制器
-  late AnimationController _fadeController;
-  late Animation<double> _fadeAnim;
-
+class _SplashPageState extends State<SplashPage> {
   /// 用户是否已同意隐私政策 / 用户协议
   bool _agreed = false;
 
@@ -46,43 +33,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-
-    // 人物浮动：上下微微飘动，呼吸感
-    _floatController = AnimationController(
-      duration: const Duration(milliseconds: 2000),
-      vsync: this,
-    )..repeat(reverse: true);
-
-    _floatAnim = Tween<double>(begin: -8, end: 8).animate(
-      CurvedAnimation(parent: _floatController, curve: Curves.easeInOut),
-    );
-
-    // 整体缩放：从0.6弹性放大到1.0
-    _scaleController = AnimationController(
-      duration: const Duration(milliseconds: 1200),
-      vsync: this,
-    );
-
-    _scaleAnim = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _scaleController, curve: Curves.elasticOut),
-    );
-
-    // 整体淡入
-    _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 800),
-      vsync: this,
-    );
-
-    _fadeAnim = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
-
-    // 启动动画
-    _fadeController.forward();
-    _scaleController.forward();
-
-    // 合规同意检查：已同意则延时跳转，未同意则显示全屏同意卡
     _initConsent();
   }
 
@@ -125,9 +75,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _floatController.dispose();
-    _scaleController.dispose();
-    _fadeController.dispose();
     super.dispose();
   }
 
@@ -148,103 +95,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         },
         child: Stack(
           children: [
-            // 背景：paper → 淡绿 渐变
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: isDark
-                      ? [AppTheme.darkBg, const Color(0xFF223A2A)]
-                      : [AppTheme.paper, const Color(0xFFEAF4DD)],
-                ),
-              ),
-            ),
-
-            // 中央内容
-            Center(
-              child: AnimatedBuilder(
-                animation: Listenable.merge([_fadeAnim, _scaleAnim]),
-                builder: (context, _) {
-                  return Opacity(
-                    opacity: _fadeAnim.value,
-                    child: Transform.scale(
-                      scale: _scaleAnim.value,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // 竹笌 Logo - 浮动动画
-                          AnimatedBuilder(
-                            animation: _floatAnim,
-                            builder: (context, child) {
-                              return Transform.translate(
-                                offset: Offset(0, _floatAnim.value),
-                                child: child,
-                              );
-                            },
-                            child: Container(
-                              width: 200,
-                              height: 200,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(40),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppTheme.bambooDeep.withValues(
-                                      alpha: 0.35,
-                                    ),
-                                    blurRadius: 40,
-                                    offset: const Offset(0, 20),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(40),
-                                // 全局 Logo 竹子图案
-                                child: Image.asset(
-                                  'assets/logo.png',
-                                  fit: BoxFit.contain,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 32),
-
-                          // 品牌名称 "竹  笌"
-                          Text(
-                            '竹  笌',
-                            style: TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.bambooDeep,
-                              letterSpacing: 12,
-                              shadows: [
-                                Shadow(
-                                  color: AppTheme.bambooDeep.withValues(
-                                    alpha: 0.3,
-                                  ),
-                                  blurRadius: 20,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // 品牌 Slogan
-                          Text(
-                            '情感陪伴 · 随时倾听',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: isDark
-                                  ? Colors.grey[400]
-                                  : Colors.grey[600],
-                              letterSpacing: 3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+            // 全屏启动图
+            Positioned.fill(
+              child: Image.asset(
+                'assets/logo/splash_cover.png',
+                fit: BoxFit.cover,
               ),
             ),
 
