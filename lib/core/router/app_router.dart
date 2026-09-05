@@ -95,6 +95,11 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // 3D 音乐狗换装定制页
       GoRoute(
+        path: '/avatar',
+        name: 'avatar',
+        builder: (context, state) => const AvatarFullscreenPage(),
+      ),
+      GoRoute(
         path: '/avatar/customize',
         name: 'avatar-customize',
         builder: (context, state) => const AvatarCustomizePage(),

@@ -29,7 +29,7 @@ List<HomeSlot> _buildDefaultSlots() {
     HomeSlot.empty(3),
     const HomeSlot(index: 4, type: SlotType.settings),
     // 中间 1 格（中央大格）
-    const HomeSlot(index: 5, type: SlotType.musicDog),
+    const HomeSlot(index: 5, type: SlotType.engine3d),
     // 底部一行 3 格
     const HomeSlot(index: 6, type: SlotType.gallery),
     const HomeSlot(index: 7, type: SlotType.voiceCall),

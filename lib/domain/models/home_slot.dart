@@ -23,7 +23,7 @@ enum SlotType {
   about,
 
   /// 3D 音乐狗（进入换装/展示）
-  musicDog,
+  engine3d,
 
   /// 设置
   settings,
@@ -85,7 +85,7 @@ class HomeSlot {
         return Icons.circle_outlined;
       case SlotType.about:
         return Icons.info_outline;
-      case SlotType.musicDog:
+      case SlotType.engine3d:
         return Icons.pets;
       case SlotType.settings:
         return Icons.settings_outlined;
@@ -109,7 +109,7 @@ class HomeSlot {
         return '';
       case SlotType.about:
         return '关于';
-      case SlotType.musicDog:
+      case SlotType.engine3d:
         return '音乐狗';
       case SlotType.settings:
         return '设置';
@@ -133,8 +133,8 @@ class HomeSlot {
         return null;
       case SlotType.about:
         return '/info';
-      case SlotType.musicDog:
-        return '/music-dog';
+      case SlotType.engine3d:
+        return '/avatar';
       case SlotType.settings:
         return '/settings';
       case SlotType.gallery:
