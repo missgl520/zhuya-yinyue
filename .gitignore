@@ -45,6 +45,23 @@ packages/model_viewer_plus/example/
 packages/model_viewer_plus/CHANGELOG.md
 packages/model_viewer_plus/LICENSE
 
+# AI 模型文件（大，不进仓库）
+assets/web/models/*.pth
+assets/web/models/*.bin
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+
+# Scripts (dev automation, don't commit)
+scripts/__pycache__/
+scripts/vroid_*.py
+
 # Chibi 3D models (generated, keep manifest in git)
 assets/3d/models/*.glb
 assets/3d/models/*.bin
