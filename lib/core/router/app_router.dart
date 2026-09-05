@@ -22,6 +22,7 @@ import '../../pages/avatar/avatar_customize_page.dart';
 
 import '../../pages/profile/profile_page.dart';
 import '../../widgets/consent_gate.dart';
+import '../../pages/home/home_page.dart';
 // Phase 1 新增页面
 import '../../pages/pet/pet_page.dart';
 import '../../pages/pet/pet_fullscreen_page.dart';
@@ -39,6 +40,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/',
         name: 'splash',
         builder: (context, state) => const SplashPage(),
+      ),
+
+      // 首页：9 槽位网格
+      GoRoute(
+        path: '/home',
+        name: 'home',
+        builder: (context, state) => const HomePage(),
       ),
 
       // 对话页：ConsentGate 检查隐私协议，ChatPage 带淡入+上滑过渡
