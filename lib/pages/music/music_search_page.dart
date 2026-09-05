@@ -9,7 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/music_search_service.dart';
-import '../providers/music_player_provider.dart';
+import '../../presentation/providers/music_player_provider.dart';
 import 'music_player_sheet.dart';
 
 class MusicSearchPage extends ConsumerStatefulWidget {

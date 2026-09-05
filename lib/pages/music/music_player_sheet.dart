@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/services/audio_process_service.dart' show ProcessState;
-import '../providers/music_player_provider.dart';
+import '../../presentation/providers/music_player_provider.dart';
 
 class MusicPlayerSheet extends ConsumerWidget {
   const MusicPlayerSheet({super.key});

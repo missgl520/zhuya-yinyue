@@ -22,7 +22,6 @@ import '../settings/settings_sheet.dart';
 import '../settings/menu_panel.dart';
 import '../../domain/entities/entities.dart' as entities;
 import '../../presentation/providers/chat_provider.dart';
-import '../../presentation/providers/settings_provider.dart';
 import '../../core/services/emotion_tts_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../widgets/avatar_viewer.dart';
