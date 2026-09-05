@@ -17,6 +17,7 @@ import '../../pages/settings/memory_history_page.dart';
 import '../../pages/voice/voice_call_page.dart';
 import '../../pages/legal/legal_page.dart';
 import '../../pages/settings/info_modules_page.dart';
+import '../../pages/settings/settings_page.dart';
 import '../../pages/avatar/avatar_fullscreen_page.dart';
 import '../../pages/avatar/avatar_customize_page.dart';
 
@@ -116,14 +117,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AvatarCustomizePage(),
       ),
 
-      // 首页 · 竹笌聊天唤醒陪伴（聊天页带 3D 竹笌角色）
-      GoRoute(
-        path: '/home',
-        name: 'home',
-        builder: (context, state) => const ChatPage(),
-      ),
-
-      // 我的页（通用：设置 / 记忆 / 隐私等）
       GoRoute(
         path: '/profile',
         name: 'profile',

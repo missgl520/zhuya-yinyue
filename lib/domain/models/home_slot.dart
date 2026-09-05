@@ -132,7 +132,7 @@ class HomeSlot {
       case SlotType.empty:
         return null;
       case SlotType.about:
-        return '/info-modules';
+        return '/info';
       case SlotType.musicDog:
         return '/avatar';
       case SlotType.settings:
